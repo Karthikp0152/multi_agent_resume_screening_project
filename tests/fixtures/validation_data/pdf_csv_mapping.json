@@ -1,0 +1,28 @@
+{
+  "description": "Mapping between PDF files and CSV entries for cross-source validation",
+  "mappings": [
+    {
+      "csv_id": "TEST001",
+      "pdf_file": "tests/fixtures/sample_resumes/pdf/accountant_sample.txt",
+      "job_category": "ACCOUNTANT",
+      "validation_notes": "Both sources should extract similar accounting skills"
+    },
+    {
+      "csv_id": "TEST002",
+      "pdf_file": "tests/fixtures/sample_resumes/pdf/it_developer_sample.txt",
+      "job_category": "INFORMATION-TECHNOLOGY",
+      "validation_notes": "Both sources should extract similar technical skills"
+    },
+    {
+      "csv_id": "TEST003",
+      "pdf_file": "tests/fixtures/sample_resumes/pdf/healthcare_nurse_sample.txt",
+      "job_category": "HEALTHCARE",
+      "validation_notes": "Both sources should extract similar healthcare skills"
+    }
+  ],
+  "validation_criteria": {
+    "skill_overlap_threshold": 0.7,
+    "category_match_required": true,
+    "min_skills_extracted": 5
+  }
+}

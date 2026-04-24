@@ -1,0 +1,54 @@
+SARAH JOHNSON
+Full Stack Developer
+
+CONTACT INFORMATION
+sarah.johnson@techmail.com | (555) 987-6543 | San Francisco, CA
+LinkedIn: linkedin.com/in/sarahjohnson | GitHub: github.com/sarahj
+
+SUMMARY
+Passionate Full Stack Developer with 5+ years of experience building scalable web applications.
+Strong expertise in modern JavaScript frameworks, cloud technologies, and agile methodologies.
+
+TECHNICAL SKILLS
+Languages: JavaScript, Python, TypeScript, Java, SQL
+Frontend: React, Vue.js, HTML5, CSS3, Redux, Next.js
+Backend: Node.js, Express, Django, Flask, REST API, GraphQL
+Databases: PostgreSQL, MongoDB, MySQL, Redis
+Cloud & DevOps: AWS, Docker, Kubernetes, CI/CD, Jenkins, Git
+Tools: Jira, Confluence, VS Code, Postman
+
+PROFESSIONAL EXPERIENCE
+
+Senior Full Stack Developer | Tech Innovations Inc. | 2021 - Present
+- Architected and developed microservices-based e-commerce platform using React and Node.js
+- Implemented GraphQL API serving 100K+ daily active users
+- Deployed containerized applications on AWS using Docker and Kubernetes
+- Mentored junior developers and conducted code reviews
+- Improved application performance by 40% through optimization techniques
+
+Full Stack Developer | Digital Solutions LLC | 2018 - 2021
+- Built responsive web applications using Vue.js and Django
+- Developed RESTful APIs for mobile and web clients
+- Integrated third-party payment gateways and authentication services
+- Implemented CI/CD pipelines using Jenkins and GitHub Actions
+- Collaborated with cross-functional teams in Agile/Scrum environment
+
+EDUCATION
+
+Bachelor of Science in Computer Science
+Tech University | 2014 - 2018
+Relevant Coursework: Data Structures, Algorithms, Database Systems, Web Development
+
+CERTIFICATIONS
+- AWS Certified Solutions Architect - Associate (2022)
+- MongoDB Certified Developer (2020)
+
+PROJECTS
+
+Open Source Contributions
+- Contributed to React ecosystem libraries with 500+ GitHub stars
+- Maintained npm package with 10K+ weekly downloads
+
+Personal Portfolio Website
+- Built using Next.js, TypeScript, and deployed on Vercel
+- Showcases projects with interactive demos and technical blog

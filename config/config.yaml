@@ -1,0 +1,153 @@
+# Smart Resume Screening System Configuration
+
+# Processing Configuration
+processing:
+  # PDF extraction method: "pdfplumber" or "pypdf"
+  pdf_extractor: "pdfplumber"
+  
+  # Enable fallback to alternative extractor if primary fails
+  enable_fallback: true
+  
+  # Batch processing settings
+  batch_size: 10
+  parallel_processing: false
+  max_workers: 4
+
+# NLP Configuration
+nlp:
+  # spaCy model for skill extraction
+  model: "en_core_web_sm"
+  
+  # Sentence transformer model for semantic scoring
+  embedding_model: "all-MiniLM-L6-v2"
+  
+  # Maximum text length for processing (characters)
+  max_text_length: 50000
+
+# Skill Normalization Configuration
+skill_normalization:
+  # Path to skill alias dictionary
+  alias_dict_path: "config/skill_aliases.json"
+  
+  # Fuzzy matching threshold (0-100)
+  fuzzy_threshold: 85
+  
+  # Case sensitivity for matching
+  case_sensitive: false
+
+# Scoring Configuration
+scoring:
+  # Enable ATS scoring
+  enable_ats: true
+  
+  # Enable semantic scoring
+  enable_semantic: true
+  
+  # Fallback to ATS only if semantic fails
+  fallback_to_ats: true
+
+# Machine Learning Configuration
+ml:
+  # Classification settings
+  classification:
+    # Test set size (0.0-1.0)
+    test_size: 0.2
+    
+    # Random state for reproducibility
+    random_state: 42
+    
+    # Baseline model (Logistic Regression) parameters
+    baseline:
+      C: 1.0
+      max_iter: 1000
+      multi_class: "multinomial"
+    
+    # Proposed model (Random Forest) parameters
+    proposed:
+      n_estimators: 100
+      max_depth: 20
+      min_samples_split: 5
+      random_state: 42
+  
+  # Clustering settings
+  clustering:
+    # Number of clusters for K-Means
+    n_clusters: 10
+    
+    # Initialization method
+    init: "k-means++"
+    
+    # Maximum iterations
+    max_iter: 300
+    
+    # Random state
+    random_state: 42
+  
+  # Association mining settings
+  association:
+    # Minimum support threshold (0.0-1.0)
+    min_support: 0.1
+    
+    # Minimum confidence threshold (0.0-1.0)
+    min_confidence: 0.5
+    
+    # Metric for rule evaluation: "lift", "confidence", "support"
+    metric: "lift"
+    
+    # Minimum threshold for the metric
+    min_threshold: 1.0
+
+# Evaluation Configuration
+evaluation:
+  # Fairness analysis settings
+  fairness:
+    # Enable fairness analysis
+    enabled: true
+    
+    # Variance threshold for flagging disparities
+    variance_threshold: 0.1
+    
+    # Standard deviation multiplier for flagging low-performing categories
+    std_dev_multiplier: 1.0
+
+# Data Configuration
+data:
+  # Archive directory with resumes organized by job category
+  archive_path: "archive/data/data"
+  
+  # CSV file with resume data
+  csv_path: "archive/Resume/Resume.csv"
+  
+  # Output directory for structured JSONs
+  output_dir: "data/processed"
+  
+  # Model save directory
+  model_dir: "models"
+  
+  # Job categories configuration
+  job_categories_path: "config/job_categories.json"
+
+# Logging Configuration
+logging:
+  # Log level: DEBUG, INFO, WARNING, ERROR, CRITICAL
+  level: "INFO"
+  
+  # Log file name (null for console only)
+  file: "resume_screening.log"
+  
+  # Log directory
+  dir: "logs"
+  
+  # Enable structured JSON logging
+  json_format: false
+
+# System Configuration
+system:
+  # Enable progress bars
+  show_progress: true
+  
+  # Enable detailed error messages
+  verbose_errors: true
+  
+  # Cache directory for models
+  cache_dir: ".cache"

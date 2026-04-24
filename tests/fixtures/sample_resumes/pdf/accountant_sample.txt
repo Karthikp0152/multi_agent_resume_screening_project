@@ -1,0 +1,44 @@
+JOHN SMITH
+Certified Public Accountant
+
+CONTACT
+Email: john.smith@email.com
+Phone: (555) 123-4567
+Location: New York, NY
+
+PROFESSIONAL SUMMARY
+Detail-oriented CPA with 8+ years of experience in financial reporting, auditing, and tax preparation. 
+Expertise in GAAP compliance, financial analysis, and budget management.
+
+SKILLS
+Financial Reporting, GAAP, Tax Preparation, Auditing, QuickBooks, SAP, Excel, Financial Analysis, 
+Budget Management, Accounts Payable, Accounts Receivable, General Ledger, Cost Accounting
+
+EXPERIENCE
+
+Senior Accountant | ABC Financial Services | 2019 - Present
+- Prepare monthly financial statements and reports in compliance with GAAP standards
+- Manage accounts payable and receivable processes for $50M+ in annual transactions
+- Conduct internal audits and ensure compliance with regulatory requirements
+- Utilize QuickBooks and SAP for financial data management
+- Reduced month-end closing time by 30% through process improvements
+
+Staff Accountant | XYZ Corporation | 2015 - 2019
+- Maintained general ledger and performed account reconciliations
+- Prepared quarterly and annual tax returns for corporate clients
+- Assisted with budget preparation and variance analysis
+- Implemented cost accounting procedures that saved $200K annually
+
+EDUCATION
+
+Bachelor of Science in Accounting
+State University | 2011 - 2015
+GPA: 3.8/4.0
+
+CERTIFICATIONS
+- Certified Public Accountant (CPA) - 2016
+- Certified Management Accountant (CMA) - 2018
+
+PROJECTS
+- Led implementation of new accounting software system across 5 departments
+- Developed automated financial reporting dashboard using Excel VBA

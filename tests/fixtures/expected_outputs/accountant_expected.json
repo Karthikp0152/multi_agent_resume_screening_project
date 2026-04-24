@@ -1,0 +1,41 @@
+{
+  "resume_id": "TEST001",
+  "job_category": "ACCOUNTANT",
+  "sections": {
+    "skills": "Financial Reporting, GAAP, QuickBooks, Excel, Tax Preparation, Auditing",
+    "experience": "Senior Accountant at Finance Corp (2018-2023). Prepared financial statements and managed general ledger. Staff Accountant at ABC Company (2015-2018).",
+    "education": "BS in Accounting, State University",
+    "projects": "",
+    "raw_text": "ACCOUNTANT - Jane Doe. SKILLS: Financial Reporting, GAAP, QuickBooks, Excel, Tax Preparation, Auditing. EXPERIENCE: Senior Accountant at Finance Corp (2018-2023). Prepared financial statements and managed general ledger. Staff Accountant at ABC Company (2015-2018). EDUCATION: BS in Accounting, State University."
+  },
+  "skills": {
+    "explicit_skills": [
+      "Financial Reporting",
+      "GAAP",
+      "QuickBooks",
+      "Excel",
+      "Tax Preparation",
+      "Auditing"
+    ],
+    "implicit_skills": [
+      "General Ledger",
+      "Financial Statements"
+    ]
+  },
+  "normalized_skills": [
+    "Financial Reporting",
+    "GAAP",
+    "QuickBooks",
+    "Microsoft Excel",
+    "Tax Preparation",
+    "Auditing",
+    "General Ledger",
+    "Financial Statements"
+  ],
+  "scores": null,
+  "metadata": {
+    "file_path": "tests/fixtures/sample_data/sample_resumes.csv",
+    "processed_date": "2024-01-01T00:00:00",
+    "processing_time_ms": 100
+  }
+}

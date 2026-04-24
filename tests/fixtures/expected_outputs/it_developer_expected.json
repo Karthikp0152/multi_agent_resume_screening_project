@@ -1,0 +1,47 @@
+{
+  "resume_id": "TEST002",
+  "job_category": "INFORMATION-TECHNOLOGY",
+  "sections": {
+    "skills": "Python, JavaScript, React, Node.js, AWS, Docker, SQL, Git",
+    "experience": "Full Stack Developer at Tech Startup (2019-2023). Built web applications using React and Node.js. Junior Developer at Software Inc (2017-2019).",
+    "education": "BS in Computer Science",
+    "projects": "E-commerce platform, Mobile app backend",
+    "raw_text": "SOFTWARE DEVELOPER - Mike Chen. SKILLS: Python, JavaScript, React, Node.js, AWS, Docker, SQL, Git. EXPERIENCE: Full Stack Developer at Tech Startup (2019-2023). Built web applications using React and Node.js. Junior Developer at Software Inc (2017-2019). EDUCATION: BS in Computer Science. PROJECTS: E-commerce platform, Mobile app backend."
+  },
+  "skills": {
+    "explicit_skills": [
+      "Python",
+      "JavaScript",
+      "React",
+      "Node.js",
+      "AWS",
+      "Docker",
+      "SQL",
+      "Git"
+    ],
+    "implicit_skills": [
+      "Web Development",
+      "Full Stack Development",
+      "Backend Development"
+    ]
+  },
+  "normalized_skills": [
+    "Python",
+    "JavaScript",
+    "React",
+    "Node.js",
+    "Amazon Web Services",
+    "Docker",
+    "SQL",
+    "Git",
+    "Web Development",
+    "Full Stack Development",
+    "Backend Development"
+  ],
+  "scores": null,
+  "metadata": {
+    "file_path": "tests/fixtures/sample_data/sample_resumes.csv",
+    "processed_date": "2024-01-01T00:00:00",
+    "processing_time_ms": 120
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "job_title": "Full Stack Developer",
+  "job_category": "INFORMATION-TECHNOLOGY",
+  "required_skills": [
+    "JavaScript",
+    "React",
+    "Node.js",
+    "Python",
+    "SQL",
+    "Git",
+    "REST API"
+  ],
+  "preferred_skills": [
+    "AWS",
+    "Docker",
+    "Kubernetes",
+    "TypeScript",
+    "GraphQL",
+    "MongoDB",
+    "CI/CD"
+  ],
+  "experience_years": 3,
+  "education": "Bachelor's degree in Computer Science or related field"
+}

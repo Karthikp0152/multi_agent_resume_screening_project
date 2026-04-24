@@ -1,0 +1,23 @@
+{
+  "job_title": "Senior Accountant",
+  "job_category": "ACCOUNTANT",
+  "required_skills": [
+    "Financial Reporting",
+    "GAAP",
+    "QuickBooks",
+    "Excel",
+    "Tax Preparation",
+    "Auditing",
+    "General Ledger",
+    "Accounts Payable",
+    "Accounts Receivable"
+  ],
+  "preferred_skills": [
+    "SAP",
+    "CPA",
+    "Cost Accounting",
+    "Budget Management"
+  ],
+  "experience_years": 5,
+  "education": "Bachelor's degree in Accounting or Finance"
+}
