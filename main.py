@@ -97,6 +97,37 @@ def _add_shared_cli_arguments(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def _build_extraction_validation_inputs(
+    csv_resumes: List[StructuredResume],
+    pdf_resumes: List[StructuredResume],
+) -> tuple[List[str], List[str], List[List[str]], List[List[str]]]:
+    """Align CSV/PDF resumes by ID for extraction validation."""
+    csv_by_id = {resume.resume_id: resume for resume in csv_resumes}
+    pdf_by_id = {resume.resume_id: resume for resume in pdf_resumes}
+
+    common_ids = sorted(set(csv_by_id).intersection(pdf_by_id))
+    if not common_ids:
+        raise ValueError("No overlapping resume IDs found between CSV and PDF data")
+
+    missing_pdf = len(csv_by_id) - len(common_ids)
+    missing_csv = len(pdf_by_id) - len(common_ids)
+    if missing_pdf or missing_csv:
+        logger.warning(
+            "Extraction validation will compare %d shared resumes "
+            "(missing in PDF: %d, missing in CSV: %d)",
+            len(common_ids),
+            missing_pdf,
+            missing_csv,
+        )
+
+    csv_texts = [csv_by_id[resume_id].sections.raw_text for resume_id in common_ids]
+    pdf_texts = [pdf_by_id[resume_id].sections.raw_text for resume_id in common_ids]
+    csv_skills = [csv_by_id[resume_id].normalized_skills for resume_id in common_ids]
+    pdf_skills = [pdf_by_id[resume_id].normalized_skills for resume_id in common_ids]
+
+    return csv_texts, pdf_texts, csv_skills, pdf_skills
+
+
 def load_config(config_path: str) -> tuple[ProcessorConfig, MLConfig]:
     """Load configuration from YAML file.
     
@@ -537,9 +568,14 @@ def validate_command(args):
     
     # Validate extraction pipeline
     logger.info("Validating PDF extraction against CSV ground truth...")
+    csv_texts, pdf_texts, csv_skills, pdf_skills = _build_extraction_validation_inputs(
+        csv_resumes, pdf_resumes
+    )
     extraction_report = evaluator.evaluate_extraction_pipeline(
-        csv_resumes=csv_resumes,
-        pdf_resumes=pdf_resumes
+        csv_texts=csv_texts,
+        pdf_texts=pdf_texts,
+        csv_skills=csv_skills,
+        pdf_skills=pdf_skills,
     )
     
     # Save validation report

@@ -2,30 +2,39 @@
 
 **CSE 572: Data Mining - Academic Project**
 
-An intelligent NLP-powered resume processing pipeline that extracts, normalizes, and analyzes resume data to improve candidate evaluation beyond traditional keyword-based Applicant Tracking Systems (ATS).
+An NLP-powered resume processing pipeline that extracts, normalizes, and analyzes resume data from the Kaggle Resume Dataset.
 
 ## 🎯 Project Overview
 
-This system processes 2,400+ resumes across 25 job categories using a multi-agent pipeline that:
-- Extracts structured information from PDF and CSV resume sources
-- Performs semantic analysis using transformer-based embeddings
-- Enables data mining tasks including classification, clustering, and association rule mining
-- Provides comprehensive fairness analysis across job categories
+This repository currently supports a modular in-process pipeline that:
+- Extracts structured information from CSV and PDF resume sources
+- Parses resume sections and normalizes extracted skills
+- Trains and evaluates job-category classifiers
+- Mines association rules from normalized skill data
+- Validates PDF extraction quality against CSV ground truth
+
+The latest real-data run used the Kaggle Resume Dataset with:
+- 2,484 CSV resumes
+- 24 job categories
+- 2,483 successfully compared CSV/PDF resumes in the validation run
 
 ## ✨ Key Features
 
-### Multi-Agent Pipeline
-- **Text Extraction Agent**: Converts PDF resumes to clean text using pdfplumber
-- **Section Parser Agent**: Divides resumes into logical sections (Skills, Experience, Education, Projects)
-- **Skill Extractor Agent**: Uses spaCy NLP to identify explicit and implicit skills
-- **Skill Normalizer Agent**: Standardizes skill variations using fuzzy matching (RapidFuzz)
-- **Scoring Agents**: Dual scoring system (ATS keyword matching + semantic similarity)
+### Pipeline Components
+- **Text Extraction**: Converts PDF resumes to text using `pdfplumber` with fallback extraction support
+- **Section Parsing**: Divides resumes into logical sections (Skills, Experience, Education, Projects)
+- **Skill Extraction**: Uses spaCy NLP to identify explicit and implicit skills
+- **Skill Normalization**: Standardizes skill variations using fuzzy matching (`RapidFuzz`)
+- **Scoring Engine**: ATS and semantic scoring module exists in `src/scoring_engine.py`, but normal CLI processing currently saves structured resumes with `scores: null`
 
-### Machine Learning Capabilities
-- **Classification**: Predicts job categories using Random Forest on skill features
-- **Clustering**: Groups similar candidates using K-Means clustering
-- **Association Mining**: Discovers frequently co-occurring skills using Apriori algorithm
-- **Fairness Analysis**: Evaluates performance equity across job categories
+### CLI-Supported Analysis
+- **Classification**: Trains a TF-IDF + Logistic Regression baseline and a skill-feature + Random Forest proposed model
+- **Association Mining**: Discovers co-occurring normalized tokens using Apriori
+- **Fairness Analysis**: Evaluates per-category F1 for the proposed classifier
+- **Cross-Source Validation**: Compares PDF-extracted text/skills against CSV ground truth
+
+### Implemented Module Not Exposed by CLI
+- **Clustering**: `src/clustering_engine.py` exists and is tested, but there is currently no `cluster` command in `main.py`
 
 ### Dual Data Source Support
 - **CSV Processing**: Fast processing using pre-extracted text from `archive/Resume/Resume.csv`
@@ -66,8 +75,8 @@ cd multi_agent_resume_screening_project
 
 2. **Create virtual environment**
 ```bash
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+python -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 ```
 
 3. **Install dependencies**
@@ -80,11 +89,20 @@ pip install -r requirements.txt
 python -m spacy download en_core_web_sm
 ```
 
+5. **Download and organize the Kaggle dataset**
+```bash
+python setup_dataset.py
+```
+
+This populates:
+- `archive/Resume/Resume.csv`
+- `archive/data/data/<CATEGORY>/*.pdf`
+
 ## 🚀 Usage
 
 ### Command-Line Interface
 
-The system provides a comprehensive CLI with multiple commands:
+The CLI commands below match the workflow that currently runs successfully in this repo:
 
 #### 1. Process CSV Resumes
 ```bash
@@ -122,7 +140,7 @@ Edit `config/config.yaml` to customize:
 - PDF extraction method (pdfplumber/pypdf)
 - NLP model selection
 - Fuzzy matching threshold
-- ML hyperparameters (n_clusters, min_support, min_confidence)
+- ML hyperparameters (test split, clustering config, min_support, min_confidence)
 
 ## 📊 Project Structure
 
@@ -173,30 +191,76 @@ pytest tests/test_skill_extractor.py
 
 **Test Coverage**: 502/504 tests passing (99.6% pass rate)
 
-## 📈 Results & Performance
+## 📈 Latest Real-Data Results
 
-### Classification Performance
-- **Baseline Model** (TF-IDF + Logistic Regression): Accuracy & Macro-F1 scores
-- **Proposed Model** (Skill Features + Random Forest): Improved performance over baseline
+Artifacts from the latest run are stored in:
+- `output/models/`
+- `output/reports/evaluation_report.json`
+- `output/reports/association_rules.json`
+- `output/reports/validation_report.json`
 
-### Clustering Analysis
-- K-Means clustering with configurable k (default: 10)
-- Silhouette score evaluation for cluster quality
+### Classification Evaluation
 
-### Association Rules
-- Discovered frequent skill co-occurrence patterns
-- Example rules:
-  - `{Machine Learning, Python} => {SQL}` (data science cluster)
-  - `{React, JavaScript} => {Node.js, HTML, CSS}` (web development cluster)
+Config used:
+- test split: `0.2`
+- random state: `42`
 
-### Fairness Analysis
-- Per-category F1 score distribution
-- Identification of under-performing categories
-- Variance analysis across job categories
+Observed metrics on the real dataset:
+
+| Model | Accuracy | Macro F1 |
+| --- | ---: | ---: |
+| Baseline: TF-IDF + Logistic Regression | 0.6258 | 0.5468 |
+| Proposed: Skill Features + Random Forest | 0.2857 | 0.2301 |
+
+Important note:
+- In the current implementation, the baseline model outperformed the proposed skill-feature model on the Kaggle dataset
+
+Proposed-model fairness analysis:
+- Mean per-category F1: `0.2301`
+- F1 standard deviation: `0.1837`
+- Flagged low-performing categories: `ADVOCATE`, `AGRICULTURE`, `ARTS`, `AUTOMOBILE`, `BPO`, `CONSULTANT`
+
+Top proposed-model categories by F1:
+- `CHEF`: `0.6531`
+- `ACCOUNTANT`: `0.5161`
+- `TEACHER`: `0.4364`
+- `BUSINESS-DEVELOPMENT`: `0.4314`
+- `INFORMATION-TECHNOLOGY`: `0.3939`
+
+### Association Mining
+
+The latest rule output contains 2 rules:
+- `{state} => {name city}` with support `0.1450`, confidence `0.5854`, lift `2.2952`
+- `{name city} => {state}` with support `0.1450`, confidence `0.5687`, lift `2.2952`
+
+Important note:
+- The current mining output is dominated by resume header/location artifacts rather than clean skill bundles, which indicates additional text cleanup is still needed before association rules are presentation-ready
+
+### Cross-Source Validation
+
+Validation compares successfully processed CSV/PDF pairs by `resume_id`.
+
+Observed metrics:
+- Samples compared: `2483`
+- Text similarity: `0.9979 ± 0.0172`
+- Skill overlap: `0.7575 ± 0.1633`
+- Extraction accuracy: `0.8777`
+
+Interpretation:
+- PDF text extraction is very close to the CSV text source
+- Skill overlap is materially lower than text similarity, so the skill extraction pipeline is more lossy than raw text extraction
+
+## ⚠️ Current Scope and Limitations
+
+- The repo name uses "multi-agent", but the shipped implementation is a modular in-process Python pipeline rather than a runtime system of independent agents
+- `src/clustering_engine.py` is implemented and tested, but clustering is not currently exposed through the CLI
+- The scoring engine exists, but normal CLI processing still writes structured resumes with `scores: null`
+- The real-data results above come from the current checked-in pipeline and should be used instead of earlier placeholder claims
 
 ## 📝 Documentation
 
 - **README**: Project overview and setup instructions
+- **Real Data Results**: `REAL_DATA_RESULTS.md`
 - **CLI Reference**: `CLI_REFERENCE.md`
 - **API Documentation**: `API_DOCUMENTATION.md`
 - **Integration Tests Guide**: `INTEGRATION_TESTS_GUIDE.md`

@@ -686,8 +686,20 @@ csv_resumes = processor.process_csv_data("archive/Resume/Resume.csv")
 pdf_resumes_by_cat = processor.load_from_archive("archive/data/data")
 pdf_resumes = [resume for resumes in pdf_resumes_by_cat.values() for resume in resumes]
 
+# Align matched resumes by ID for extraction validation
+csv_by_id = {resume.resume_id: resume for resume in csv_resumes}
+pdf_by_id = {resume.resume_id: resume for resume in pdf_resumes}
+common_ids = sorted(set(csv_by_id).intersection(pdf_by_id))
+
+csv_texts = [csv_by_id[resume_id].sections.raw_text for resume_id in common_ids]
+pdf_texts = [pdf_by_id[resume_id].sections.raw_text for resume_id in common_ids]
+csv_skills = [csv_by_id[resume_id].normalized_skills for resume_id in common_ids]
+pdf_skills = [pdf_by_id[resume_id].normalized_skills for resume_id in common_ids]
+
 # Validate extraction pipeline
-extraction_report = evaluator.evaluate_extraction_pipeline(csv_resumes, pdf_resumes)
+extraction_report = evaluator.evaluate_extraction_pipeline(
+    csv_texts, pdf_texts, csv_skills, pdf_skills
+)
 
 print(f"Extraction accuracy: {extraction_report.extraction_accuracy:.4f}")
 print(f"Text similarity: {extraction_report.text_similarity_mean:.4f} ± {extraction_report.text_similarity_std:.4f}")

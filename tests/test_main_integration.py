@@ -702,8 +702,15 @@ class TestOutputFileGeneration:
             mock_processor = MockProcessor.return_value
             mock_evaluator = MockEvaluator.return_value
             
-            mock_processor.process_csv_data.return_value = []
-            mock_processor.load_from_archive.return_value = {}
+            mock_resume = MagicMock()
+            mock_resume.resume_id = "10001"
+            mock_resume.sections.raw_text = "Python Java SQL"
+            mock_resume.normalized_skills = ["Python", "Java", "SQL"]
+
+            mock_processor.process_csv_data.return_value = [mock_resume]
+            mock_processor.load_from_archive.return_value = {
+                "INFORMATION-TECHNOLOGY": [mock_resume]
+            }
             
             from src.evaluation_module import ExtractionValidationReport
             mock_report = ExtractionValidationReport(
@@ -723,6 +730,13 @@ class TestOutputFileGeneration:
             args.config = 'config/config.yaml'
             
             main.validate_command(args)
+
+            mock_evaluator.evaluate_extraction_pipeline.assert_called_once_with(
+                csv_texts=["Python Java SQL"],
+                pdf_texts=["Python Java SQL"],
+                csv_skills=[["Python", "Java", "SQL"]],
+                pdf_skills=[["Python", "Java", "SQL"]],
+            )
             
             # Verify validation report generated
             reports_dir = temp_output_dir / "reports"
