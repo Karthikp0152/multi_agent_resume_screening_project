@@ -13,6 +13,7 @@ import pickle
 import sys
 from pathlib import Path
 from typing import List
+from collections import Counter
 
 from src.models import ProcessorConfig, MLConfig, StructuredResume
 from src.logging_config import setup_logging
@@ -29,6 +30,7 @@ FeatureGenerator = None
 Classifier = None
 AssociationMiner = None
 EvaluationModule = None
+ClusteringEngine = None
 
 _RUNTIME_IMPORTS = {
     "ResumeProcessor": ("src.resume_processor", "ResumeProcessor"),
@@ -36,6 +38,7 @@ _RUNTIME_IMPORTS = {
     "Classifier": ("src.classifier", "Classifier"),
     "AssociationMiner": ("src.association_miner", "AssociationMiner"),
     "EvaluationModule": ("src.evaluation_module", "EvaluationModule"),
+    "ClusteringEngine": ("src.clustering_engine", "ClusteringEngine"),
 }
 
 
@@ -74,24 +77,31 @@ def _get_config_value(
     return default if nested_value is None else nested_value
 
 
-def _add_shared_cli_arguments(parser: argparse.ArgumentParser) -> None:
+def _add_shared_cli_arguments(
+    parser: argparse.ArgumentParser,
+    suppress_defaults: bool = False
+) -> None:
     """Add CLI arguments that should work before or after the subcommand."""
+    default_config = argparse.SUPPRESS if suppress_defaults else 'config/config.yaml'
+    default_output_dir = argparse.SUPPRESS if suppress_defaults else 'output'
+    default_log_level = argparse.SUPPRESS if suppress_defaults else 'INFO'
+
     parser.add_argument(
         '--config',
         type=str,
-        default='config/config.yaml',
+        default=default_config,
         help='Path to configuration file (default: config/config.yaml)'
     )
     parser.add_argument(
         '--output-dir',
         type=str,
-        default='output',
+        default=default_output_dir,
         help='Output directory for results (default: output)'
     )
     parser.add_argument(
         '--log-level',
         type=str,
-        default='INFO',
+        default=default_log_level,
         choices=['DEBUG', 'INFO', 'WARNING', 'ERROR'],
         help='Logging level (default: INFO)'
     )
@@ -238,6 +248,27 @@ def save_structured_resumes(resumes: List[StructuredResume], output_dir: Path):
     logger.info(f"Saved {len(resumes)} structured resumes to {output_dir}")
 
 
+def _flatten_resumes_by_category(resumes_by_category: dict) -> List[StructuredResume]:
+    """Flatten category-grouped resumes into one list."""
+    all_resumes = []
+    for resumes in resumes_by_category.values():
+        all_resumes.extend(resumes)
+    return all_resumes
+
+
+def _split_train_test_indices(sample_count: int, test_size: float, random_state: int):
+    """Create shared split indices so labels, text, and skill features align."""
+    import numpy as np
+    from sklearn.model_selection import train_test_split
+
+    indices = np.arange(sample_count)
+    return train_test_split(
+        indices,
+        test_size=test_size,
+        random_state=random_state
+    )
+
+
 def process_csv_command(args):
     """Process resumes from CSV file.
     
@@ -324,25 +355,26 @@ def train_command(args):
     X, vocabulary = feature_gen.generate_feature_matrix(structured_resumes)
     y = np.array([resume.job_category for resume in structured_resumes])
     
-    # Split data
-    from sklearn.model_selection import train_test_split
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=ml_config.test_size, random_state=ml_config.random_state
+    # Split data once so text, labels, and skill features stay aligned.
+    train_idx, test_idx = _split_train_test_indices(
+        len(structured_resumes), ml_config.test_size, ml_config.random_state
     )
+    X_train = X[train_idx]
+    y_train = y[train_idx]
+    X_test = X[test_idx]
+    y_test = y[test_idx]
     
     logger.info(f"Training set: {len(X_train)} samples, Test set: {len(X_test)} samples")
     
     # Train baseline model
     logger.info("Training baseline model (TF-IDF + Logistic Regression)...")
     raw_texts = [resume.sections.raw_text for resume in structured_resumes]
-    raw_train, raw_test = train_test_split(
-        raw_texts, test_size=ml_config.test_size, random_state=ml_config.random_state
-    )
+    raw_train = [raw_texts[i] for i in train_idx]
     classifier.train_baseline(raw_train, y_train)
     
     # Train proposed model
-    logger.info("Training proposed model (Skill Features + Random Forest)...")
-    classifier.train_proposed(X_train, y_train)
+    logger.info("Training proposed model (Hybrid Text + Skill Features)...")
+    classifier.train_proposed(X_train, y_train, resume_texts=raw_train)
     
     # Save models
     output_dir = Path(args.output_dir) / "models"
@@ -395,22 +427,19 @@ def evaluate_command(args):
     y = np.array([resume.job_category for resume in structured_resumes])
     all_categories = sorted(set(y.tolist()))
     
-    # Split data
-    from sklearn.model_selection import train_test_split
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=ml_config.test_size, random_state=ml_config.random_state
+    # Split data once so text, labels, and skill features stay aligned.
+    train_idx, test_idx = _split_train_test_indices(
+        len(structured_resumes), ml_config.test_size, ml_config.random_state
     )
-    
-    # Also split raw texts for baseline model
+    X_test = X[test_idx]
+    y_test = y[test_idx]
     raw_texts = [resume.sections.raw_text for resume in structured_resumes]
-    _, raw_test = train_test_split(
-        raw_texts, test_size=ml_config.test_size, random_state=ml_config.random_state
-    )
+    raw_test = [raw_texts[i] for i in test_idx]
     
     # Get predictions
     logger.info("Generating predictions...")
     baseline_pred = classifier.predict(X_test, model_type="baseline", resume_texts=raw_test)
-    proposed_pred = classifier.predict(X_test, model_type="proposed")
+    proposed_pred = classifier.predict(X_test, model_type="proposed", resume_texts=raw_test)
     
     # Evaluate
     evaluator = evaluation_module_cls()
@@ -538,6 +567,118 @@ def mine_command(args):
     print("="*60 + "\n")
 
 
+def cluster_command(args):
+    """Cluster resumes by normalized skill features."""
+    logger.info("=== Starting Resume Clustering ===")
+
+    # Load configuration
+    processor_config, ml_config = load_config(args.config)
+
+    # Initialize components
+    resume_processor_cls = _get_runtime_dependency("ResumeProcessor")
+    feature_generator_cls = _get_runtime_dependency("FeatureGenerator")
+    clustering_engine_cls = _get_runtime_dependency("ClusteringEngine")
+    evaluation_module_cls = _get_runtime_dependency("EvaluationModule")
+
+    processor = resume_processor_cls(processor_config)
+    feature_gen = feature_generator_cls()
+    n_clusters = args.n_clusters if args.n_clusters is not None else ml_config.n_clusters
+
+    if args.top_skills < 1:
+        raise ValueError("--top-skills must be at least 1")
+
+    if args.source == "csv":
+        logger.info(f"Loading CSV data from: {args.csv_file}")
+        structured_resumes = processor.process_csv_data(args.csv_file)
+    elif args.source == "pdf":
+        logger.info(f"Loading PDF data from: {args.pdf_dir}")
+        structured_resumes = _flatten_resumes_by_category(
+            processor.load_from_archive(args.pdf_dir)
+        )
+    else:
+        raise ValueError(f"Invalid cluster source: {args.source}")
+
+    if not structured_resumes:
+        raise ValueError("No resumes available for clustering")
+
+    if n_clusters > len(structured_resumes):
+        raise ValueError(
+            f"Requested n_clusters={n_clusters}, but only "
+            f"{len(structured_resumes)} resumes are available. Lower --n-clusters."
+        )
+
+    X, vocabulary = feature_gen.generate_feature_matrix(structured_resumes)
+
+    clusterer = clustering_engine_cls(n_clusters=n_clusters)
+    labels = clusterer.fit_clusters(X)
+    profiles = clusterer.get_cluster_profiles(vocabulary, top_n=args.top_skills)
+
+    evaluator = evaluation_module_cls()
+    metrics = evaluator.evaluate_clustering(X, labels)
+
+    cluster_sizes = Counter(int(label) for label in labels)
+    category_counts = {}
+    for label, resume in zip(labels, structured_resumes):
+        cluster_id = str(int(label))
+        category_counts.setdefault(cluster_id, Counter())
+        category_counts[cluster_id][resume.job_category] += 1
+
+    report = {
+        "source": args.source,
+        "sample_count": len(structured_resumes),
+        "requested_cluster_count": n_clusters,
+        "actual_cluster_count": metrics.n_clusters,
+        "silhouette_score": metrics.silhouette_score,
+        "cluster_sizes": {
+            str(cluster_id): int(count)
+            for cluster_id, count in sorted(cluster_sizes.items())
+        },
+        "top_skills": {
+            str(cluster_id): skills
+            for cluster_id, skills in sorted(profiles.items())
+        },
+        "job_category_counts": {
+            cluster_id: dict(sorted(counts.items()))
+            for cluster_id, counts in sorted(category_counts.items())
+        }
+    }
+
+    assignments = [
+        {
+            "resume_id": resume.resume_id,
+            "job_category": resume.job_category,
+            "cluster": int(label)
+        }
+        for resume, label in zip(structured_resumes, labels)
+    ]
+
+    output_dir = Path(args.output_dir) / "reports"
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    with open(output_dir / "cluster_report.json", "w") as f:
+        json.dump(report, f, indent=2)
+
+    with open(output_dir / "cluster_assignments.json", "w") as f:
+        json.dump(assignments, f, indent=2)
+
+    logger.info(f"Cluster report saved to {output_dir / 'cluster_report.json'}")
+    logger.info(f"Cluster assignments saved to {output_dir / 'cluster_assignments.json'}")
+
+    print("\n" + "="*60)
+    print("CLUSTERING SUMMARY")
+    print("="*60)
+    print(f"\nSource: {args.source}")
+    print(f"Samples: {len(structured_resumes)}")
+    print(f"Requested clusters: {n_clusters}")
+    print(f"Actual clusters: {metrics.n_clusters}")
+    print(f"Silhouette score: {metrics.silhouette_score:.4f}")
+    print("\nCluster sizes:")
+    for cluster_id, count in sorted(cluster_sizes.items()):
+        top_skills = ", ".join(profiles[int(cluster_id)][:5])
+        print(f"  Cluster {cluster_id}: {count} resumes | {top_skills}")
+    print("="*60 + "\n")
+
+
 def validate_command(args):
     """Run cross-source validation between CSV and PDF data.
     
@@ -629,7 +770,7 @@ def main():
         'process-csv',
         help='Extract and structure resumes from CSV file'
     )
-    _add_shared_cli_arguments(csv_parser)
+    _add_shared_cli_arguments(csv_parser, suppress_defaults=True)
     csv_parser.add_argument(
         '--csv-file',
         type=str,
@@ -642,7 +783,7 @@ def main():
         'process-pdf',
         help='Extract and structure resumes from PDF archive'
     )
-    _add_shared_cli_arguments(pdf_parser)
+    _add_shared_cli_arguments(pdf_parser, suppress_defaults=True)
     pdf_parser.add_argument(
         '--pdf-dir',
         type=str,
@@ -655,7 +796,7 @@ def main():
         'train',
         help='Train ML models on CSV data'
     )
-    _add_shared_cli_arguments(train_parser)
+    _add_shared_cli_arguments(train_parser, suppress_defaults=True)
     train_parser.add_argument(
         '--csv-file',
         type=str,
@@ -668,7 +809,7 @@ def main():
         'evaluate',
         help='Evaluate trained models'
     )
-    _add_shared_cli_arguments(eval_parser)
+    _add_shared_cli_arguments(eval_parser, suppress_defaults=True)
     eval_parser.add_argument(
         '--csv-file',
         type=str,
@@ -681,12 +822,50 @@ def main():
         'mine',
         help='Run association mining on resume data'
     )
-    _add_shared_cli_arguments(mine_parser)
+    _add_shared_cli_arguments(mine_parser, suppress_defaults=True)
     mine_parser.add_argument(
         '--csv-file',
         type=str,
         default='archive/Resume/Resume.csv',
         help='Path to CSV file (default: archive/Resume/Resume.csv)'
+    )
+
+    # cluster command
+    cluster_parser = subparsers.add_parser(
+        'cluster',
+        help='Cluster resumes by normalized skill features'
+    )
+    _add_shared_cli_arguments(cluster_parser, suppress_defaults=True)
+    cluster_parser.add_argument(
+        '--source',
+        type=str,
+        default='csv',
+        choices=['csv', 'pdf'],
+        help='Resume source to cluster (default: csv)'
+    )
+    cluster_parser.add_argument(
+        '--csv-file',
+        type=str,
+        default='archive/Resume/Resume.csv',
+        help='Path to CSV file when --source csv (default: archive/Resume/Resume.csv)'
+    )
+    cluster_parser.add_argument(
+        '--pdf-dir',
+        type=str,
+        default='archive/data/data',
+        help='Path to PDF archive when --source pdf (default: archive/data/data)'
+    )
+    cluster_parser.add_argument(
+        '--n-clusters',
+        type=int,
+        default=None,
+        help='Number of clusters (default: config ml.clustering.n_clusters)'
+    )
+    cluster_parser.add_argument(
+        '--top-skills',
+        type=int,
+        default=10,
+        help='Number of top skills to report per cluster (default: 10)'
     )
     
     # validate command
@@ -694,7 +873,7 @@ def main():
         'validate',
         help='Run cross-source validation between CSV and PDF data'
     )
-    _add_shared_cli_arguments(validate_parser)
+    _add_shared_cli_arguments(validate_parser, suppress_defaults=True)
     validate_parser.add_argument(
         '--csv-file',
         type=str,
@@ -725,6 +904,8 @@ def main():
         evaluate_command(args)
     elif args.command == 'mine':
         mine_command(args)
+    elif args.command == 'cluster':
+        cluster_command(args)
     elif args.command == 'validate':
         validate_command(args)
     else:

@@ -479,19 +479,28 @@ class Classifier:
     def train_baseline(self, X_train: np.ndarray, y_train: np.ndarray):
         """Train TF-IDF + Logistic Regression baseline."""
     
-    def train_proposed(self, X_train: np.ndarray, y_train: np.ndarray):
-        """Train skill features + Random Forest proposed model."""
+    def train_proposed(self, X_train: np.ndarray, y_train: np.ndarray,
+                       resume_texts: Optional[List[str]] = None):
+        """Train proposed model.
+
+        When resume_texts are provided, this trains the hybrid text-plus-skill
+        model used by the CLI. Without resume_texts, it keeps the skill-only
+        fallback used by direct callers.
+        """
     
-    def predict(self, X: np.ndarray, model_type: str = "proposed") -> np.ndarray:
+    def predict(self, X: np.ndarray, model_type: str = "proposed",
+                resume_texts: Optional[List[str]] = None) -> np.ndarray:
         """Predict job categories."""
     
-    def predict_proba(self, X: np.ndarray, model_type: str = "proposed") -> np.ndarray:
+    def predict_proba(self, X: np.ndarray, model_type: str = "proposed",
+                      resume_texts: Optional[List[str]] = None) -> np.ndarray:
         """Predict job category probabilities."""
 ```
 
 **Model Specifications**:
 - **Baseline**: TF-IDF + Logistic Regression (C=1.0, max_iter=1000)
-- **Proposed**: Skill Features + Random Forest (n_estimators=100, max_depth=20)
+- **Proposed CLI model**: raw resume TF-IDF + binary normalized-skill features, combined with sparse `hstack`, then Logistic Regression
+- **Proposed direct-call fallback**: binary skill features + Random Forest when `resume_texts` are omitted
 
 **Usage Example**:
 ```python
@@ -499,14 +508,22 @@ classifier = Classifier()
 
 # Train models
 classifier.train_baseline(raw_texts, y_train)
-classifier.train_proposed(X_train, y_train)
+classifier.train_proposed(X_train, y_train, resume_texts=raw_train_texts)
 
 # Make predictions
 baseline_pred = classifier.predict(X_test, model_type="baseline")
-proposed_pred = classifier.predict(X_test, model_type="proposed")
+proposed_pred = classifier.predict(
+    X_test,
+    model_type="proposed",
+    resume_texts=raw_test_texts
+)
 
 # Get probabilities
-probabilities = classifier.predict_proba(X_test, model_type="proposed")
+probabilities = classifier.predict_proba(
+    X_test,
+    model_type="proposed",
+    resume_texts=raw_test_texts
+)
 ```
 
 ### ClusteringEngine
@@ -548,7 +565,8 @@ Discovers frequently co-occurring skills using Apriori algorithm.
 
 ```python
 class AssociationMiner:
-    def __init__(self, min_support: float = 0.1, min_confidence: float = 0.5):
+    def __init__(self, min_support: float = 0.1, min_confidence: float = 0.5,
+                 clean_transactions: bool = True):
         """Initialize with support and confidence thresholds."""
     
     def mine_frequent_itemsets(self, transactions: List[List[str]]) -> pd.DataFrame:
@@ -573,6 +591,10 @@ for rule in sorted(rules, key=lambda r: r.lift, reverse=True)[:5]:
     print(f"{set(rule.antecedents)} => {set(rule.consequents)}")
     print(f"  Support: {rule.support:.3f}, Confidence: {rule.confidence:.3f}, Lift: {rule.lift:.3f}")
 ```
+
+By default, transaction cleanup removes obvious resume header/contact/location
+artifacts such as `name`, `city`, `state`, `email`, `phone`, `linkedin`, URL-like
+strings, email-like strings, and phone-like strings before Apriori runs.
 
 ## Evaluation Components
 
@@ -657,20 +679,27 @@ structured_resumes = processor.process_csv_data("archive/Resume/Resume.csv")
 # Generate features
 feature_gen = FeatureGenerator()
 X, vocabulary = feature_gen.generate_feature_matrix(structured_resumes)
+raw_texts = [resume.sections.raw_text for resume in structured_resumes]
 y = np.array([resume.job_category for resume in structured_resumes])
 
 # Split data
 from sklearn.model_selection import train_test_split
-X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=ml_config.test_size, random_state=ml_config.random_state
+indices = np.arange(len(structured_resumes))
+train_idx, test_idx = train_test_split(
+    indices, test_size=ml_config.test_size, random_state=ml_config.random_state
 )
+X_train, X_test = X[train_idx], X[test_idx]
+y_train, y_test = y[train_idx], y[test_idx]
+raw_train = [raw_texts[i] for i in train_idx]
+raw_test = [raw_texts[i] for i in test_idx]
 
 # Train classifier
 classifier = Classifier()
-classifier.train_proposed(X_train, y_train)
+classifier.train_baseline(raw_train, y_train)
+classifier.train_proposed(X_train, y_train, resume_texts=raw_train)
 
 # Evaluate
-predictions = classifier.predict(X_test)
+predictions = classifier.predict(X_test, resume_texts=raw_test)
 evaluator = EvaluationModule()
 metrics = evaluator.evaluate_classification(y_test, predictions)
 

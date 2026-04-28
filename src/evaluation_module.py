@@ -266,6 +266,12 @@ class EvaluationModule:
         if X.shape[0] < 2:
             logger.warning("Silhouette score requires at least 2 samples")
             return ClusteringMetrics(silhouette_score=0.0, n_clusters=n_clusters)
+
+        if n_clusters >= X.shape[0]:
+            logger.warning(
+                "Silhouette score requires fewer clusters than samples"
+            )
+            return ClusteringMetrics(silhouette_score=0.0, n_clusters=n_clusters)
         
         score = silhouette_score(X, labels)
         

@@ -159,6 +159,62 @@ class TestProposedModelTraining:
         assert classifier.proposed_model.min_samples_split == 5
         assert classifier.proposed_model.random_state == 42
 
+    def test_train_proposed_with_resume_texts_uses_hybrid_features(self):
+        """Test proposed hybrid model training with text and skill features."""
+        classifier = Classifier()
+
+        X_train = np.array([
+            [1, 1, 0, 0],
+            [0, 0, 1, 1],
+            [1, 0, 0, 0],
+            [0, 0, 1, 0],
+            [0, 1, 0, 1],
+        ])
+        resume_texts = [
+            "Python software engineer",
+            "Accounting finance tax",
+            "Java developer",
+            "Financial audit",
+            "SQL reporting"
+        ]
+        y_train = np.array(["IT", "ACCOUNTANT", "IT", "ACCOUNTANT", "IT"])
+
+        classifier.train_proposed(X_train, y_train, resume_texts=resume_texts)
+
+        assert classifier.proposed_vectorizer is not None
+        assert classifier.proposed_model is not None
+        assert classifier.proposed_model.max_iter == 1000
+
+        predictions = classifier.predict(
+            X_train,
+            model_type="proposed",
+            resume_texts=resume_texts
+        )
+        assert len(predictions) == len(y_train)
+
+    def test_hybrid_proposed_prediction_requires_resume_texts(self):
+        """Test hybrid proposed prediction requires aligned resume text."""
+        classifier = Classifier()
+
+        X_train = np.array([
+            [1, 0],
+            [0, 1],
+            [1, 1],
+            [0, 0],
+        ])
+        resume_texts = [
+            "Python developer",
+            "Accounting analyst",
+            "Python SQL",
+            "Financial reporting"
+        ]
+        y_train = np.array(["IT", "ACCOUNTANT", "IT", "ACCOUNTANT"])
+
+        classifier.train_proposed(X_train, y_train, resume_texts=resume_texts)
+
+        with pytest.raises(ValueError, match="resume_texts required"):
+            classifier.predict(X_train, model_type="proposed")
+
 
 class TestBaselineModelPrediction:
     """Test baseline model predictions on CSV data."""

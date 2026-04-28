@@ -28,13 +28,11 @@ The latest real-data run used the Kaggle Resume Dataset with:
 - **Scoring Engine**: ATS and semantic scoring module exists in `src/scoring_engine.py`, but normal CLI processing currently saves structured resumes with `scores: null`
 
 ### CLI-Supported Analysis
-- **Classification**: Trains a TF-IDF + Logistic Regression baseline and a skill-feature + Random Forest proposed model
-- **Association Mining**: Discovers co-occurring normalized tokens using Apriori
+- **Classification**: Trains a TF-IDF + Logistic Regression baseline and a hybrid text-plus-skill proposed model
+- **Association Mining**: Discovers co-occurring normalized tokens using Apriori after default transaction cleanup
+- **Clustering**: Groups resumes with K-Means from CSV or PDF sources and writes aggregate and per-resume reports
 - **Fairness Analysis**: Evaluates per-category F1 for the proposed classifier
 - **Cross-Source Validation**: Compares PDF-extracted text/skills against CSV ground truth
-
-### Implemented Module Not Exposed by CLI
-- **Clustering**: `src/clustering_engine.py` exists and is tested, but there is currently no `cluster` command in `main.py`
 
 ### Dual Data Source Support
 - **CSV Processing**: Fast processing using pre-extracted text from `archive/Resume/Resume.csv`
@@ -129,7 +127,13 @@ python main.py --output-dir output evaluate --csv-file archive/Resume/Resume.csv
 python main.py --output-dir output mine --csv-file archive/Resume/Resume.csv
 ```
 
-#### 6. Cross-Source Validation
+#### 6. Cluster Resumes
+```bash
+python main.py --output-dir output cluster --source csv --csv-file archive/Resume/Resume.csv
+python main.py --output-dir output cluster --source pdf --pdf-dir archive/data/data
+```
+
+#### 7. Cross-Source Validation
 ```bash
 python main.py --output-dir output validate --csv-file archive/Resume/Resume.csv --pdf-dir archive/data/data
 ```
@@ -198,6 +202,8 @@ Artifacts from the latest run are stored in:
 - `output/models/`
 - `output/reports/evaluation_report.json`
 - `output/reports/association_rules.json`
+- `output/reports/cluster_report.json`
+- `output/reports/cluster_assignments.json`
 - `output/reports/validation_report.json`
 
 ### Classification Evaluation
@@ -211,31 +217,50 @@ Observed metrics on the real dataset:
 | Model | Accuracy | Macro F1 |
 | --- | ---: | ---: |
 | Baseline: TF-IDF + Logistic Regression | 0.6258 | 0.5468 |
-| Proposed: Skill Features + Random Forest | 0.2857 | 0.2301 |
+| Proposed: Hybrid Text + Skill Logistic Regression | 0.4165 | 0.3685 |
 
 Important note:
-- In the current implementation, the baseline model outperformed the proposed skill-feature model on the Kaggle dataset
+- In the current implementation, the baseline model outperformed the proposed hybrid model on the Kaggle dataset
 
 Proposed-model fairness analysis:
-- Mean per-category F1: `0.2301`
-- F1 standard deviation: `0.1837`
-- Flagged low-performing categories: `ADVOCATE`, `AGRICULTURE`, `ARTS`, `AUTOMOBILE`, `BPO`, `CONSULTANT`
+- Mean per-category F1: `0.3685`
+- F1 standard deviation: `0.1870`
+- Flagged low-performing categories: `AGRICULTURE`, `APPAREL`, `ARTS`, `BPO`, `CONSULTANT`
 
 Top proposed-model categories by F1:
-- `CHEF`: `0.6531`
-- `ACCOUNTANT`: `0.5161`
-- `TEACHER`: `0.4364`
-- `BUSINESS-DEVELOPMENT`: `0.4314`
-- `INFORMATION-TECHNOLOGY`: `0.3939`
+- `CHEF`: `0.7391`
+- `CONSTRUCTION`: `0.6441`
+- `ACCOUNTANT`: `0.6182`
+- `TEACHER`: `0.5455`
+- `INFORMATION-TECHNOLOGY`: `0.5246`
 
 ### Association Mining
 
-The latest rule output contains 2 rules:
-- `{state} => {name city}` with support `0.1450`, confidence `0.5854`, lift `2.2952`
-- `{name city} => {state}` with support `0.1450`, confidence `0.5687`, lift `2.2952`
+The latest cleaned rule output contains `0` rules at the configured thresholds:
+- `min_support`: `0.1`
+- `min_confidence`: `0.5`
+- Non-empty cleaned transactions: `2482`
+- Frequent itemsets found before confidence filtering: `21`
 
 Important note:
-- The current mining output is dominated by resume header/location artifacts rather than clean skill bundles, which indicates additional text cleanup is still needed before association rules are presentation-ready
+- Default mining cleanup now removes obvious resume header/contact/location artifacts before Apriori. With the current confidence threshold, no rules met the threshold on the full dataset.
+
+### Clustering
+
+CSV source clustering with `10` requested clusters:
+- Samples clustered: `2484`
+- Actual clusters: `10`
+- Silhouette score: `0.1024`
+- Cluster sizes: `158`, `1`, `461`, `372`, `1`, `1`, `2`, `1`, `1`, `1486`
+
+PDF source clustering with `10` requested clusters:
+- Samples clustered: `2483`
+- Actual clusters: `10`
+- Silhouette score: `0.1620`
+- Cluster sizes: `1`, `442`, `1`, `246`, `1`, `1`, `1`, `1788`, `1`, `1`
+
+Important note:
+- The clustering report is useful for exploration, but both real-data runs produced one dominant cluster and several singleton clusters. Treat the cluster output as exploratory rather than validated category discovery.
 
 ### Cross-Source Validation
 
@@ -254,7 +279,6 @@ Interpretation:
 ## Current Scope and Limitations
 
 - The repo name uses "multi-agent", but the shipped implementation is a modular in-process Python pipeline rather than a runtime system of independent agents
-- `src/clustering_engine.py` is implemented and tested, but clustering is not currently exposed through the CLI
 - The scoring engine exists, but normal CLI processing still writes structured resumes with `scores: null`
 - The real-data results above come from the current checked-in pipeline and should be used instead of earlier placeholder claims
 

@@ -914,7 +914,7 @@ class TestEdgeCases:
         parser = SectionParser()
         
         # Create long experience section without words that match other section patterns
-        experience_content = "\n".join([f"Task {i}: Description of task {i}" for i in range(100)])
+        experience_content = "\n".join([f"Work item {i}: Description of work item {i}" for i in range(100)])
         resume_text = f"""
         EXPERIENCE
         {experience_content}
@@ -925,6 +925,6 @@ class TestEdgeCases:
         
         experience = parser.extract_section(resume_text, 'experience')
         
-        assert "Task 0" in experience
-        assert "Task 99" in experience
+        assert "Work item 0" in experience
+        assert "Work item 99" in experience
         assert "BS Computer Science" not in experience

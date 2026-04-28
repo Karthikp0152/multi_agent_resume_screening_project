@@ -11,6 +11,7 @@ from typing import Optional, Tuple, List
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
+from scipy.sparse import csr_matrix, hstack
 
 from src.models import StructuredResume
 
@@ -22,7 +23,7 @@ class Classifier:
     
     This class implements two classification approaches:
     1. Baseline: TF-IDF vectors + Logistic Regression (trained on CSV Resume_str)
-    2. Proposed: Binary skill features + Random Forest (trained on CSV-derived skills)
+    2. Proposed: hybrid TF-IDF text features + binary skill features
     
     The classifier is trained primarily on CSV data and can be validated on
     PDF-extracted features.
@@ -41,7 +42,8 @@ class Classifier:
         self.baseline_model: Optional[LogisticRegression] = None
         
         # Proposed model
-        self.proposed_model: Optional[RandomForestClassifier] = None
+        self.proposed_vectorizer: Optional[TfidfVectorizer] = None
+        self.proposed_model: Optional[object] = None
         
         # Class labels
         self.classes_: Optional[np.ndarray] = None
@@ -110,17 +112,21 @@ class Classifier:
     def train_proposed(
         self,
         X_train: np.ndarray,
-        y_train: np.ndarray
+        y_train: np.ndarray,
+        resume_texts: Optional[List[str]] = None
     ):
-        """Train skill features + Random Forest proposed model.
+        """Train the proposed model.
         
-        This method trains the proposed model using binary skill feature vectors
-        (derived from CSV data) with a Random Forest classifier.
+        When resume_texts are provided, this trains the CLI's proposed hybrid
+        model using TF-IDF text features plus binary skill features. If texts
+        are omitted, the method keeps a skill-only Random Forest fallback for
+        direct callers and legacy tests.
         
         Args:
             X_train: Feature matrix of shape (n_samples, n_features) with binary
                     skill features from CSV-derived normalized skills
             y_train: Array of job category labels
+            resume_texts: Optional raw resume text strings for hybrid training
             
         Raises:
             ValueError: If training data is empty or invalid
@@ -133,21 +139,43 @@ class Classifier:
                 f"Mismatch between features ({X_train.shape[0]}) "
                 f"and labels ({len(y_train)})"
             )
+
+        if resume_texts is not None and len(resume_texts) != len(y_train):
+            raise ValueError(
+                f"Mismatch between resume texts ({len(resume_texts)}) "
+                f"and labels ({len(y_train)})"
+            )
         
-        logger.info(
-            f"Training proposed model on {X_train.shape[0]} resumes with "
-            f"{X_train.shape[1]} skill features"
-        )
-        
-        # Train Random Forest with specified hyperparameters
-        self.proposed_model = RandomForestClassifier(
-            n_estimators=100,
-            max_depth=20,
-            min_samples_split=5,
-            random_state=42
-        )
-        
-        self.proposed_model.fit(X_train, y_train)
+        if resume_texts is None:
+            logger.info(
+                f"Training proposed skill-only fallback on {X_train.shape[0]} "
+                f"resumes with {X_train.shape[1]} skill features"
+            )
+
+            self.proposed_vectorizer = None
+            self.proposed_model = RandomForestClassifier(
+                n_estimators=100,
+                max_depth=20,
+                min_samples_split=5,
+                random_state=42
+            )
+            self.proposed_model.fit(X_train, y_train)
+        else:
+            logger.info(
+                f"Training proposed hybrid model on {X_train.shape[0]} resumes "
+                f"with text and {X_train.shape[1]} skill features"
+            )
+
+            self.proposed_vectorizer = TfidfVectorizer()
+            X_text = self.proposed_vectorizer.fit_transform(resume_texts)
+            X_hybrid = self._combine_hybrid_features(X_train, X_text)
+
+            self.proposed_model = LogisticRegression(
+                C=1.0,
+                max_iter=1000,
+                random_state=42
+            )
+            self.proposed_model.fit(X_hybrid, y_train)
         
         # Store class labels if not already set
         if self.classes_ is None:
@@ -155,8 +183,51 @@ class Classifier:
         
         logger.info(
             f"Proposed model trained: {len(self.proposed_model.classes_)} classes, "
-            f"accuracy on training set: {self.proposed_model.score(X_train, y_train):.4f}"
+            f"accuracy on training set: "
+            f"{self._score_proposed_training_data(X_train, y_train, resume_texts):.4f}"
         )
+
+    def _combine_hybrid_features(self, X_skills: np.ndarray, X_text):
+        """Combine text and skill features into one sparse matrix."""
+        return hstack([X_text, csr_matrix(X_skills)], format="csr")
+
+    def _build_proposed_features(
+        self,
+        X: np.ndarray,
+        resume_texts: Optional[List[str]]
+    ):
+        """Return feature matrix expected by the proposed model."""
+        if self.proposed_vectorizer is None:
+            return X
+
+        if resume_texts is None:
+            raise ValueError("resume_texts required for hybrid proposed model")
+
+        if X is None or X.shape[0] == 0:
+            raise ValueError("Feature matrix required for proposed model predictions")
+
+        if X.shape[0] != len(resume_texts):
+            raise ValueError(
+                f"Mismatch between features ({X.shape[0]}) "
+                f"and resume texts ({len(resume_texts)})"
+            )
+
+        X_text = self.proposed_vectorizer.transform(resume_texts)
+        return self._combine_hybrid_features(X, X_text)
+
+    def _score_proposed_training_data(
+        self,
+        X_train: np.ndarray,
+        y_train: np.ndarray,
+        resume_texts: Optional[List[str]]
+    ) -> float:
+        """Score proposed model on its training representation."""
+        if self.proposed_vectorizer is None:
+            return self.proposed_model.score(X_train, y_train)
+
+        X_text = self.proposed_vectorizer.transform(resume_texts)
+        X_hybrid = self._combine_hybrid_features(X_train, X_text)
+        return self.proposed_model.score(X_hybrid, y_train)
     
     def predict(
         self,
@@ -169,7 +240,8 @@ class Classifier:
         Args:
             X: Feature matrix (for proposed model) or None (for baseline with texts)
             model_type: "baseline" or "proposed" (default: "proposed")
-            resume_texts: List of resume texts (required for baseline model)
+            resume_texts: List of resume texts (required for baseline model and
+                hybrid proposed model predictions)
             
         Returns:
             Array of predicted job category labels
@@ -199,8 +271,9 @@ class Classifier:
             
             if X is None or X.shape[0] == 0:
                 raise ValueError("Feature matrix required for proposed model predictions")
-            
-            predictions = self.proposed_model.predict(X)
+
+            X_proposed = self._build_proposed_features(X, resume_texts)
+            predictions = self.proposed_model.predict(X_proposed)
             
             logger.debug(f"Proposed predictions: {len(predictions)} samples")
             
@@ -220,7 +293,8 @@ class Classifier:
         Args:
             X: Feature matrix (for proposed model) or None (for baseline with texts)
             model_type: "baseline" or "proposed" (default: "proposed")
-            resume_texts: List of resume texts (required for baseline model)
+            resume_texts: List of resume texts (required for baseline model and
+                hybrid proposed model predictions)
             
         Returns:
             Array of shape (n_samples, n_classes) with probability scores
@@ -253,8 +327,9 @@ class Classifier:
             
             if X is None or X.shape[0] == 0:
                 raise ValueError("Feature matrix required for proposed model predictions")
-            
-            probabilities = self.proposed_model.predict_proba(X)
+
+            X_proposed = self._build_proposed_features(X, resume_texts)
+            probabilities = self.proposed_model.predict_proba(X_proposed)
             
             logger.debug(
                 f"Proposed probabilities: {probabilities.shape[0]} samples x "
@@ -294,7 +369,8 @@ class Classifier:
         if self.proposed_model is None:
             raise ValueError("Proposed model not trained. Call train_proposed() first.")
         
-        proposed_accuracy = self.proposed_model.score(X_pdf, y_pdf)
+        X_proposed_pdf = self._build_proposed_features(X_pdf, pdf_resume_texts)
+        proposed_accuracy = self.proposed_model.score(X_proposed_pdf, y_pdf)
         
         logger.info(f"Proposed model accuracy on PDF data: {proposed_accuracy:.4f}")
         

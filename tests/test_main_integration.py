@@ -260,6 +260,47 @@ class TestCSVProcessingPipeline:
                 assert 'confidence' in rule
                 assert 'lift' in rule
 
+                noisy_terms = {"name", "city", "state", "name city", "email", "phone", "address"}
+                mined_terms = set(rule["antecedents"]).union(rule["consequents"])
+                assert mined_terms.isdisjoint(noisy_terms)
+
+    def test_csv_to_clustering_pipeline(self, sample_csv_file, temp_output_dir):
+        """Test complete pipeline from CSV to cluster reports."""
+        args = MagicMock()
+        args.source = "csv"
+        args.csv_file = sample_csv_file
+        args.pdf_dir = "archive/data/data"
+        args.n_clusters = 2
+        args.top_skills = 3
+        args.output_dir = str(temp_output_dir)
+        args.config = 'config/config.yaml'
+
+        main.cluster_command(args)
+
+        reports_dir = temp_output_dir / "reports"
+        report_file = reports_dir / "cluster_report.json"
+        assignments_file = reports_dir / "cluster_assignments.json"
+
+        assert report_file.exists()
+        assert assignments_file.exists()
+
+        with open(report_file, 'r') as f:
+            report = json.load(f)
+
+        assert report["source"] == "csv"
+        assert report["sample_count"] == 3
+        assert report["requested_cluster_count"] == 2
+        assert "silhouette_score" in report
+        assert "cluster_sizes" in report
+        assert "top_skills" in report
+        assert "job_category_counts" in report
+
+        with open(assignments_file, 'r') as f:
+            assignments = json.load(f)
+
+        assert len(assignments) == 3
+        assert {"resume_id", "job_category", "cluster"}.issubset(assignments[0])
+
 
 class TestPDFProcessingPipeline:
     """Test end-to-end pipeline from PDF archive to evaluation reports."""
@@ -365,6 +406,68 @@ class TestPDFProcessingPipeline:
             pdf_output = temp_output_dir / "pdf_structured"
             json_files = list(pdf_output.glob("*.json"))
             assert len(json_files) == 3
+
+    def test_cluster_pdf_command_execution(self, temp_output_dir):
+        """Test cluster command with mocked PDF archive data."""
+        with patch('main.ResumeProcessor') as MockProcessor:
+            mock_processor = MockProcessor.return_value
+
+            from src.models import StructuredResume, ResumeSections, SkillSet, ResumeMetadata
+
+            resumes = []
+            for resume_id, category, skills in [
+                ("pdf1", "ACCOUNTANT", ["Excel", "Accounting", "Tax"]),
+                ("pdf2", "INFORMATION-TECHNOLOGY", ["Python", "SQL", "Docker"]),
+                ("pdf3", "INFORMATION-TECHNOLOGY", ["Python", "React", "AWS"]),
+            ]:
+                resumes.append(
+                    StructuredResume(
+                        resume_id=resume_id,
+                        job_category=category,
+                        sections=ResumeSections(
+                            skills=", ".join(skills),
+                            experience="Sample experience",
+                            education="Sample education",
+                            projects="Sample projects",
+                            raw_text="Sample raw text"
+                        ),
+                        skills=SkillSet(explicit_skills=skills, implicit_skills=[]),
+                        normalized_skills=skills,
+                        scores=None,
+                        metadata=ResumeMetadata(
+                            file_path=f"{resume_id}.pdf",
+                            processed_date="2023-01-01",
+                            processing_time_ms=100
+                        )
+                    )
+                )
+
+            mock_processor.load_from_archive.return_value = {
+                "ACCOUNTANT": [resumes[0]],
+                "INFORMATION-TECHNOLOGY": [resumes[1], resumes[2]]
+            }
+
+            args = MagicMock()
+            args.source = "pdf"
+            args.csv_file = "unused.csv"
+            args.pdf_dir = "archive/data/data"
+            args.n_clusters = 2
+            args.top_skills = 3
+            args.output_dir = str(temp_output_dir)
+            args.config = 'config/config.yaml'
+
+            main.cluster_command(args)
+
+            reports_dir = temp_output_dir / "reports"
+            assert (reports_dir / "cluster_report.json").exists()
+            assert (reports_dir / "cluster_assignments.json").exists()
+
+            with open(reports_dir / "cluster_report.json", 'r') as f:
+                report = json.load(f)
+
+            assert report["source"] == "pdf"
+            assert report["sample_count"] == 3
+            assert report["requested_cluster_count"] == 2
 
 
 class TestCrossSourceValidation:
@@ -651,6 +754,58 @@ class TestCLIArgumentParsing:
         
         with patch.object(sys, 'argv', test_args):
             assert True  # Parser creation succeeds
+
+    def test_cluster_cli_args(self):
+        """Test CLI argument parsing for cluster command."""
+        test_args = [
+            'main.py',
+            'cluster',
+            '--source', 'csv',
+            '--csv-file', 'data.csv',
+            '--n-clusters', '4',
+            '--top-skills', '5',
+            '--output-dir', 'results'
+        ]
+
+        with patch.object(sys, 'argv', test_args):
+            assert True  # Parser creation succeeds
+
+    def test_global_output_dir_survives_subcommand_defaults(self):
+        """Test shared CLI args work before the subcommand."""
+        test_args = [
+            'main.py',
+            '--output-dir', 'global-results',
+            'cluster',
+            '--source', 'csv',
+            '--csv-file', 'data.csv'
+        ]
+
+        with patch.object(sys, 'argv', test_args), \
+                patch('main.setup_logging'), \
+                patch('main.cluster_command') as mock_cluster:
+            main.main()
+
+        parsed_args = mock_cluster.call_args.args[0]
+        assert parsed_args.output_dir == 'global-results'
+
+    def test_subcommand_output_dir_overrides_global_output_dir(self):
+        """Test shared CLI args after the subcommand override global values."""
+        test_args = [
+            'main.py',
+            '--output-dir', 'global-results',
+            'cluster',
+            '--source', 'csv',
+            '--csv-file', 'data.csv',
+            '--output-dir', 'subcommand-results'
+        ]
+
+        with patch.object(sys, 'argv', test_args), \
+                patch('main.setup_logging'), \
+                patch('main.cluster_command') as mock_cluster:
+            main.main()
+
+        parsed_args = mock_cluster.call_args.args[0]
+        assert parsed_args.output_dir == 'subcommand-results'
 
 
 class TestOutputFileGeneration:

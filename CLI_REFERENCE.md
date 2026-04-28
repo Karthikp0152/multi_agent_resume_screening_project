@@ -121,12 +121,12 @@ python main.py train --csv-file archive/Resume/Resume.csv
 1. Loads and processes CSV resume data
 2. Generates feature matrix from normalized skills
 3. Trains baseline model (TF-IDF + Logistic Regression)
-4. Trains proposed model (Skill Features + Random Forest)
+4. Trains proposed model (hybrid raw-text TF-IDF + binary skill features)
 5. Saves trained models and vocabulary
 
 **Models:**
 - **Baseline**: TF-IDF vectorization + Logistic Regression
-- **Proposed**: Binary skill features + Random Forest (100 trees, max_depth=20)
+- **Proposed**: Sparse hybrid text-plus-skill features + Logistic Regression
 
 ---
 
@@ -196,7 +196,7 @@ python main.py mine --csv-file archive/Resume/Resume.csv
 
 **What it does:**
 1. Loads resume data and extracts normalized skills
-2. Transforms resumes to transactions (skill sets)
+2. Cleans obvious header/contact/location artifacts from transactions
 3. Applies Apriori algorithm to find frequent itemsets
 4. Generates association rules with support, confidence, lift
 5. Saves rules sorted by lift
@@ -219,7 +219,50 @@ python main.py mine --csv-file archive/Resume/Resume.csv
 
 ---
 
-### 6. validate
+### 6. cluster
+
+Cluster resumes from CSV or PDF sources.
+
+**Usage:**
+```bash
+python main.py cluster [OPTIONS]
+```
+
+**Options:**
+- `--source {csv,pdf}`: Resume source to cluster (default: `csv`)
+- `--csv-file PATH`: Path to CSV file when `--source csv` (default: `archive/Resume/Resume.csv`)
+- `--pdf-dir PATH`: Path to PDF archive directory when `--source pdf` (default: `archive/data/data`)
+- `--n-clusters INT`: Number of clusters (default: `ml.clustering.n_clusters` from config)
+- `--top-skills INT`: Number of top skills to report per cluster (default: `10`)
+- `--config PATH`: Configuration file (default: `config/config.yaml`)
+- `--output-dir PATH`: Output directory (default: `output`)
+- `--log-level LEVEL`: Logging level (default: `INFO`)
+
+**Examples:**
+```bash
+python main.py --output-dir output cluster --source csv --csv-file archive/Resume/Resume.csv
+python main.py --output-dir output cluster --source pdf --pdf-dir archive/data/data
+python main.py cluster --source csv --n-clusters 8 --top-skills 15
+```
+
+**Output:**
+- `output/reports/cluster_report.json`: Aggregate clustering metrics and profiles
+- `output/reports/cluster_assignments.json`: Per-resume cluster assignments
+- Console summary with cluster sizes and top skills
+
+**What it does:**
+1. Loads and processes resumes from the selected source
+2. Generates binary normalized-skill features
+3. Fits K-Means clustering
+4. Computes silhouette score when valid
+5. Writes cluster sizes, top skills, and job-category counts per cluster
+
+**Failure case:**
+- If `--n-clusters` exceeds the number of resumes, the command fails with a clear message asking the user to lower `--n-clusters`.
+
+---
+
+### 7. validate
 
 Run cross-source validation between CSV and PDF data.
 
@@ -312,6 +355,9 @@ python main.py evaluate
 # Mine associations
 python main.py mine
 
+# Cluster CSV resumes
+python main.py cluster --source csv
+
 # Validate extraction
 python main.py validate
 ```
@@ -397,8 +443,8 @@ python main.py --log-level DEBUG <command>
 ```json
 {
   "classification": {
-    "accuracy": 0.2857,
-    "macro_f1": 0.2301,
+    "accuracy": 0.4165,
+    "macro_f1": 0.3685,
     "per_class_f1": {...}
   },
   "model_comparison": {
@@ -408,20 +454,20 @@ python main.py --log-level DEBUG <command>
       "per_class_f1": {...}
     },
     "proposed": {
-      "accuracy": 0.2857,
-      "macro_f1": 0.2301,
+      "accuracy": 0.4165,
+      "macro_f1": 0.3685,
       "per_class_f1": {...}
     },
     "improvements": {
-      "accuracy": -0.3400,
-      "macro_f1": -0.3167
+      "accuracy": -0.2093,
+      "macro_f1": -0.1783
     }
   },
   "fairness": {
-    "mean_f1": 0.2301,
-    "f1_variance": 0.0338,
-    "f1_std": 0.1837,
-    "flagged_categories": ["ADVOCATE", "AGRICULTURE", "ARTS", "AUTOMOBILE", "BPO", "CONSULTANT"]
+    "mean_f1": 0.3685,
+    "f1_variance": 0.0350,
+    "f1_std": 0.1870,
+    "flagged_categories": ["AGRICULTURE", "APPAREL", "ARTS", "BPO", "CONSULTANT"]
   }
 }
 ```

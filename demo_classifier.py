@@ -4,7 +4,7 @@ Demonstration script for the Classifier component.
 This script demonstrates:
 1. Loading CSV data
 2. Training baseline model (TF-IDF + Logistic Regression)
-3. Training proposed model (Skill features + Random Forest)
+3. Training proposed model (hybrid text-plus-skill Logistic Regression)
 4. Making predictions with both models
 5. Comparing model performance
 """
@@ -59,6 +59,7 @@ def main():
     # Generate features
     print("\n3. Generating feature vectors...")
     X, vocabulary = feature_gen.generate_feature_matrix(structured_resumes)
+    resume_texts = [r.sections.raw_text for r in structured_resumes]
     y = np.array([r.job_category for r in structured_resumes])
     
     print(f"   [PASS] Feature matrix shape: {X.shape}")
@@ -66,17 +67,15 @@ def main():
     print(f"   [PASS] Sample skills: {vocabulary[:10]}")
     
     # Train proposed model
-    print("\n4. Training PROPOSED model (Skill features + Random Forest)...")
-    classifier.train_proposed(X, y)
+    print("\n4. Training PROPOSED model (Hybrid text + skill Logistic Regression)...")
+    classifier.train_proposed(X, y, resume_texts=resume_texts)
     print(f"   [PASS] Model trained with hyperparameters:")
-    print(f"     - n_estimators: 100")
-    print(f"     - max_depth: 20")
-    print(f"     - min_samples_split: 5")
+    print(f"     - C: 1.0")
+    print(f"     - max_iter: 1000")
     print(f"     - random_state: 42")
     
     # Train baseline model
     print("\n5. Training BASELINE model (TF-IDF + Logistic Regression)...")
-    resume_texts = [r.sections.raw_text for r in structured_resumes]
     classifier.train_baseline(resume_texts, y)
     print(f"   [PASS] Model trained with hyperparameters:")
     print(f"     - C: 1.0")
@@ -86,7 +85,11 @@ def main():
     # Make predictions
     print("\n6. Making predictions on training data...")
     
-    predictions_proposed = classifier.predict(X, model_type="proposed")
+    predictions_proposed = classifier.predict(
+        X,
+        model_type="proposed",
+        resume_texts=resume_texts
+    )
     predictions_baseline = classifier.predict(
         None,
         model_type="baseline",
@@ -111,7 +114,11 @@ def main():
     # Get prediction probabilities
     print("\n8. Prediction probabilities (first resume):")
     
-    proba_proposed = classifier.predict_proba(X[:1], model_type="proposed")
+    proba_proposed = classifier.predict_proba(
+        X[:1],
+        model_type="proposed",
+        resume_texts=resume_texts[:1]
+    )
     proba_baseline = classifier.predict_proba(
         None,
         model_type="baseline",
@@ -133,7 +140,7 @@ def main():
     print("  [PASS] Classifier class created with baseline and proposed models")
     print("  [PASS] __init__() initializes both model types")
     print("  [PASS] train_baseline() uses TF-IDF + Logistic Regression on CSV Resume_str")
-    print("  [PASS] train_proposed() uses skill features + Random Forest")
+    print("  [PASS] train_proposed() uses hybrid text-plus-skill features")
     print("  [PASS] predict() returns job category predictions")
     print("  [PASS] predict_proba() returns confidence scores")
     print("  [PASS] validate_on_pdf_data() tests models on PDF-extracted features")

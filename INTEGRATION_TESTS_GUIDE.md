@@ -5,7 +5,7 @@ This guide documents the integration tests for the command-line workflow in `mai
 ## Test File
 
 - File: `tests/test_main_integration.py`
-- Coverage focus: CLI argument parsing, CSV/PDF processing, model training, evaluation, association mining, validation reports, and output-file generation.
+- Coverage focus: CLI argument parsing, CSV/PDF processing, model training, evaluation, association mining, clustering, validation reports, and output-file generation.
 
 ## Quick Start
 
@@ -27,6 +27,7 @@ Run selected tests:
 
 ```bash
 pytest tests/test_main_integration.py::TestCSVProcessingPipeline -v
+pytest tests/test_main_integration.py::TestCSVProcessingPipeline::test_csv_to_clustering_pipeline -v
 pytest tests/test_main_integration.py::TestCrossSourceValidation -v
 pytest tests/test_main_integration.py::TestOutputFileGeneration -v
 ```
@@ -40,7 +41,8 @@ The integration suite exercises these command paths:
 3. `train`
 4. `evaluate`
 5. `mine`
-6. `validate`
+6. `cluster`
+7. `validate`
 
 The tests verify that these workflows can generate the expected local artifacts:
 
@@ -49,7 +51,8 @@ The tests verify that these workflows can generate the expected local artifacts:
 3. vocabulary files
 4. evaluation reports
 5. association-rule reports
-6. validation reports
+6. cluster reports and assignments
+7. validation reports
 
 ## Fixture Data
 

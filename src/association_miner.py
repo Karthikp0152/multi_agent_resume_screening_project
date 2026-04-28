@@ -7,14 +7,34 @@ and market trends.
 """
 
 import logging
+import re
 import pandas as pd
 import numpy as np
-from typing import List, Dict
+from typing import Any, List, Dict
 from dataclasses import dataclass
 from mlxtend.frequent_patterns import apriori, association_rules
 from mlxtend.preprocessing import TransactionEncoder
 
 logger = logging.getLogger(__name__)
+
+
+NOISE_SKILL_TERMS = {
+    "name",
+    "city",
+    "state",
+    "name city",
+    "email",
+    "phone",
+    "address",
+    "linkedin",
+    "resume",
+    "www",
+    "http",
+}
+
+URL_PATTERN = re.compile(r"^(https?://|www\.)|\.com\b|\.org\b|\.net\b", re.IGNORECASE)
+EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+PHONE_PATTERN = re.compile(r"^\+?[\d\s().-]{7,}$")
 
 
 @dataclass
@@ -47,12 +67,18 @@ class AssociationMiner:
         min_confidence: Minimum confidence threshold for association rules
     """
     
-    def __init__(self, min_support: float = 0.1, min_confidence: float = 0.5):
+    def __init__(
+        self,
+        min_support: float = 0.1,
+        min_confidence: float = 0.5,
+        clean_transactions: bool = True
+    ):
         """Initialize with support and confidence thresholds.
         
         Args:
             min_support: Minimum support threshold (default: 0.1)
             min_confidence: Minimum confidence threshold (default: 0.5)
+            clean_transactions: Remove obvious resume header/contact noise
             
         Raises:
             ValueError: If thresholds are not in valid range (0, 1]
@@ -65,11 +91,55 @@ class AssociationMiner:
         
         self.min_support = min_support
         self.min_confidence = min_confidence
+        self.clean_transactions_enabled = clean_transactions
         
         logger.info(
             f"AssociationMiner initialized with min_support={min_support}, "
             f"min_confidence={min_confidence}"
         )
+
+    def _is_noise_skill(self, skill: str) -> bool:
+        """Return True when a mined term is resume metadata noise."""
+        normalized = skill.strip().lower()
+
+        if not normalized:
+            return True
+
+        if normalized in NOISE_SKILL_TERMS:
+            return True
+
+        if URL_PATTERN.search(normalized):
+            return True
+
+        if EMAIL_PATTERN.match(normalized):
+            return True
+
+        if PHONE_PATTERN.match(normalized):
+            return True
+
+        return False
+
+    def clean_transaction(self, skills: List[str]) -> List[str]:
+        """Clean and deduplicate one transaction while preserving order."""
+        cleaned = []
+        seen = set()
+
+        for skill in skills:
+            if not isinstance(skill, str):
+                continue
+
+            normalized_skill = skill.strip()
+            if self._is_noise_skill(normalized_skill):
+                continue
+
+            dedupe_key = normalized_skill.lower()
+            if dedupe_key in seen:
+                continue
+
+            cleaned.append(normalized_skill)
+            seen.add(dedupe_key)
+
+        return cleaned
 
     def _get_effective_min_support(self, transaction_count: int) -> float:
         """Raise support for tiny datasets to avoid single-occurrence explosions."""
@@ -226,7 +296,7 @@ class AssociationMiner:
     
     def mine_associations(
         self,
-        resumes: List[Dict[str, any]]
+        resumes: List[Dict[str, Any]]
     ) -> List[AssociationRule]:
         """Complete association mining pipeline.
         
@@ -258,7 +328,16 @@ class AssociationMiner:
                 skills = getattr(resume, 'normalized_skills', [])
             
             if skills:
-                transactions.append(skills)
+                transaction = (
+                    self.clean_transaction(skills)
+                    if self.clean_transactions_enabled
+                    else list(dict.fromkeys(skills))
+                )
+
+                if transaction:
+                    transactions.append(transaction)
+                else:
+                    logger.debug(f"Resume {i} had only filtered/noisy skills, skipping")
             else:
                 logger.debug(f"Resume {i} has no normalized skills, skipping")
         

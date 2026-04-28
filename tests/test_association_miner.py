@@ -24,6 +24,12 @@ class TestAssociationMinerInit:
         miner = AssociationMiner(min_support=0.2, min_confidence=0.6)
         assert miner.min_support == 0.2
         assert miner.min_confidence == 0.6
+        assert miner.clean_transactions_enabled is True
+
+    def test_init_can_disable_transaction_cleaning(self):
+        """Test initialization with cleaning disabled."""
+        miner = AssociationMiner(clean_transactions=False)
+        assert miner.clean_transactions_enabled is False
     
     def test_init_invalid_support(self):
         """Test initialization with invalid support threshold."""
@@ -208,6 +214,49 @@ class TestGenerateRules:
 
 class TestMineAssociations:
     """Test complete association mining pipeline."""
+
+    def test_clean_transaction_removes_header_contact_noise(self):
+        """Test that default cleaning removes resume metadata artifacts."""
+        miner = AssociationMiner()
+
+        cleaned = miner.clean_transaction([
+            "name",
+            "Name City",
+            "state",
+            "email",
+            "person@example.com",
+            "www.example.com",
+            "555-123-4567",
+            "Python",
+            "python",
+            "SQL"
+        ])
+
+        assert cleaned == ["Python", "SQL"]
+
+    def test_mine_associations_filters_noise_before_apriori(self):
+        """Test that noisy terms do not appear in mined rules."""
+        miner = AssociationMiner(min_support=0.4, min_confidence=0.5)
+
+        resumes = [
+            {'normalized_skills': ['name city', 'state', 'Python', 'SQL']},
+            {'normalized_skills': ['email', 'Python', 'SQL']},
+            {'normalized_skills': ['phone', 'Python', 'Machine Learning']},
+            {'normalized_skills': ['address', 'SQL', 'Machine Learning']},
+            {'normalized_skills': ['Python', 'SQL', 'Machine Learning']},
+        ]
+
+        rules = miner.mine_associations(resumes)
+        noisy_terms = {"name city", "state", "email", "phone", "address"}
+
+        for rule in rules:
+            mined_terms = set(rule.antecedents).union(rule.consequents)
+            assert mined_terms.isdisjoint(noisy_terms)
+
+        assert any(
+            "Python" in set(rule.antecedents).union(rule.consequents)
+            for rule in rules
+        )
     
     def test_mine_associations_with_dicts(self):
         """Test mining with resume dictionaries."""

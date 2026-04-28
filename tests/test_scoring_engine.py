@@ -46,7 +46,7 @@ class TestATSScoreCalculation:
             return ScoringEngine()
     
     def test_perfect_match(self, engine):
-        """Test ATS score with 100% keyword match."""
+        """Test ATS score with a full keyword match."""
         resume_skills = ["Python", "Java", "SQL"]
         job_requirements = ["python", "java", "sql"]
         score = engine.calculate_ats_score(resume_skills, job_requirements)
