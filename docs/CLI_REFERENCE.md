@@ -278,7 +278,7 @@ python main.py cluster --source csv --n-clusters 8 --top-skills 15
 2. Generates binary normalized-skill features
 3. Fits K-Means clustering
 4. Computes silhouette score when valid
-5. Writes cluster sizes, top skills, and job-category counts per cluster
+5. Writes cluster sizes, cleaned top-skill labels, and job-category counts per cluster
 
 **Failure case:**
 - If `--n-clusters` exceeds the number of resumes, the command fails with a clear message asking the user to lower `--n-clusters`.

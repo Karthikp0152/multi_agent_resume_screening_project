@@ -545,6 +545,9 @@ class ClusteringEngine:
         """Get top skills for each cluster."""
 ```
 
+Cluster profile labels skip obvious resume metadata artifacts such as contact
+fields, URL-like strings, phone-like strings, and `name city` header fragments.
+
 **Usage Example**:
 ```python
 clustering = ClusteringEngine(n_clusters=10)

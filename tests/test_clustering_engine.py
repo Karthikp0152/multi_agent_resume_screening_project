@@ -264,6 +264,44 @@ class TestGetClusterProfiles:
         
         assert all(len(skills) == 3 for skills in profiles_3.values())
         assert all(len(skills) == 5 for skills in profiles_5.values())
+
+    def test_get_cluster_profiles_filters_resume_metadata_noise(self):
+        """Test that cluster labels skip obvious resume header artifacts."""
+        engine = ClusteringEngine(n_clusters=2)
+        X = np.array([
+            [1, 1, 1, 1, 1, 1, 0, 0, 0],
+            [1, 1, 1, 1, 1, 1, 0, 0, 0],
+            [1, 1, 1, 1, 1, 1, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 1, 1, 1],
+            [0, 0, 0, 0, 0, 0, 1, 1, 1],
+            [0, 0, 0, 0, 0, 0, 1, 1, 1],
+        ])
+        vocabulary = [
+            "name city",
+            "state",
+            "highlights",
+            "ed",
+            "Python",
+            "SQL",
+            "company name city",
+            "data analysis",
+            "machine learning",
+        ]
+
+        engine.fit_clusters(X)
+        profiles = engine.get_cluster_profiles(vocabulary, top_n=2)
+
+        all_profile_skills = {
+            skill.lower()
+            for cluster_skills in profiles.values()
+            for skill in cluster_skills
+        }
+        assert "name city" not in all_profile_skills
+        assert "state" not in all_profile_skills
+        assert "company name city" not in all_profile_skills
+        assert "highlights" not in all_profile_skills
+        assert "ed" not in all_profile_skills
+        assert {"python", "sql", "data analysis", "machine learning"} == all_profile_skills
     
     def test_get_cluster_profiles_before_fitting_raises_error(self):
         """Test that calling get_cluster_profiles before fitting raises error."""

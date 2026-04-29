@@ -101,6 +101,7 @@ PDF source:
 Note:
 
 - The cluster command writes `output/reports/cluster_report.json` and `output/reports/cluster_assignments.json`. Running the PDF clustering command after CSV clustering overwrites those paths with the PDF result.
+- Cluster top-skill labels are cleaned to avoid obvious resume header/contact artifacts in the console and JSON report.
 
 Observation:
 

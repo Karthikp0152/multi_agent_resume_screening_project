@@ -266,6 +266,8 @@ Finding:
 
 - Clustering works as an exploratory feature, but the current feature space
   creates one dominant cluster and several singleton or near-singleton clusters.
+- Cluster top-skill labels are cleaned to avoid obvious resume header/contact
+  artifacts in the console and JSON report.
 
 ### Cross-Source Validation
 
