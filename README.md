@@ -202,6 +202,17 @@ association, clustering, and validation results, and local buttons for running
 the existing CLI commands. Generated outputs still go under `output/` and remain
 ignored by Git.
 
+Recommended demo flow:
+
+1. Process CSV
+2. Train
+3. Evaluate
+4. Mine
+5. Cluster CSV
+6. Validate
+
+Use `process-pdf` when you also want to regenerate the structured PDF output.
+
 ## Latest Real-Data Results
 
 These are the latest verified metrics from the current checked-in code on the

@@ -26,6 +26,17 @@ python -m uvicorn webapp.app:app --reload
 Then open `http://127.0.0.1:8000`. The dashboard displays generated report
 files and can launch the existing local pipeline commands.
 
+Recommended demo flow:
+
+1. Process CSV
+2. Train
+3. Evaluate
+4. Mine
+5. Cluster CSV
+6. Validate
+
+Use `process-pdf` when structured PDF output needs to be regenerated.
+
 ## Local Generated Files
 
 Generated files are intentionally kept outside Git:

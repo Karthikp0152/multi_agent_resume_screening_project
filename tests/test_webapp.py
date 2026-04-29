@@ -61,7 +61,13 @@ def test_dashboard_pages_return_200(tmp_path):
     manager = JobManager(root_dir=tmp_path, python_executable=sys.executable)
     client = TestClient(create_app(manager))
 
-    assert client.get("/").status_code == 200
+    dashboard = client.get("/")
+    assert dashboard.status_code == 200
+    assert "Recommended flow" in dashboard.text
+    assert "run-progress" in dashboard.text
+    assert "Process CSV" in dashboard.text
+    assert "Validate" in dashboard.text
+
     assert client.get("/reports").status_code == 200
     assert client.get("/api/reports").status_code == 200
 

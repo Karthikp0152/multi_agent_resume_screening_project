@@ -36,6 +36,17 @@ python -m uvicorn webapp.app:app --reload
 Open `http://127.0.0.1:8000` after the server starts. The dashboard is a local
 interface over the CLI and writes to the same ignored `output/` directory.
 
+Recommended dashboard flow:
+
+1. Process CSV
+2. Train
+3. Evaluate
+4. Mine
+5. Cluster CSV
+6. Validate
+
+Run `process-pdf` when you want to regenerate PDF-derived structured resumes.
+
 ## Commands
 
 ### 1. process-csv

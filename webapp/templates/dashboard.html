@@ -89,6 +89,34 @@
             <button class="button" type="button" data-command="{{ command }}">{{ label }}</button>
           {% endfor %}
         </div>
+
+        <div id="run-progress" class="run-progress" aria-live="polite" hidden>
+          <div class="progress-copy">
+            <strong id="progress-title">Pipeline job running</strong>
+            <span id="progress-state">Waiting for status</span>
+          </div>
+          <div class="progress-track">
+            <span></span>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel flow-panel">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Recommended flow</p>
+            <h2>Demo order</h2>
+          </div>
+          <p>Use CSV for the fast ML workflow, then use PDF for extraction validation.</p>
+        </div>
+        <ol class="flow-list">
+          <li><strong>Process CSV</strong><span>Build structured resume output.</span></li>
+          <li><strong>Train</strong><span>Create baseline and proposed models.</span></li>
+          <li><strong>Evaluate</strong><span>Generate classification and fairness metrics.</span></li>
+          <li><strong>Mine</strong><span>Check skill association rules.</span></li>
+          <li><strong>Cluster CSV</strong><span>Explore resume groupings.</span></li>
+          <li><strong>Validate</strong><span>Compare PDF extraction with CSV text.</span></li>
+        </ol>
       </section>
 
       <section class="grid metrics-grid">
@@ -193,6 +221,32 @@
       const form = document.querySelector("#job-form");
       const statusBox = document.querySelector("#job-status");
       const logBox = document.querySelector("#job-log");
+      const progressBox = document.querySelector("#run-progress");
+      const progressTitle = document.querySelector("#progress-title");
+      const progressState = document.querySelector("#progress-state");
+      const commandButtons = [...document.querySelectorAll("[data-command]")];
+
+      function setControlsRunning(activeCommand) {
+        progressBox.hidden = false;
+        progressBox.className = "run-progress is-running";
+        progressTitle.textContent = `Running ${activeCommand}`;
+        progressState.textContent = "The local pipeline is working. This can take several minutes on the real dataset.";
+        commandButtons.forEach((button) => {
+          button.disabled = true;
+          button.classList.toggle("is-running", button.dataset.command === activeCommand);
+        });
+      }
+
+      function setControlsFinished(job) {
+        const ok = job.status === "succeeded";
+        progressBox.className = `run-progress ${ok ? "is-complete" : "is-failed"}`;
+        progressTitle.textContent = `${job.command} ${ok ? "finished" : "stopped"}`;
+        progressState.textContent = ok ? "Reports are ready to review." : "Check the job log below.";
+        commandButtons.forEach((button) => {
+          button.disabled = false;
+          button.classList.remove("is-running");
+        });
+      }
 
       async function pollJob(jobId) {
         const response = await fetch(`/jobs/${jobId}`);
@@ -201,11 +255,14 @@
         logBox.textContent = [job.stdout, job.stderr, job.error].filter(Boolean).join("\\n\\n");
         if (job.status === "running") {
           window.setTimeout(() => pollJob(jobId), 1500);
+        } else {
+          setControlsFinished(job);
         }
       }
 
-      document.querySelectorAll("[data-command]").forEach((button) => {
+      commandButtons.forEach((button) => {
         button.addEventListener("click", async () => {
+          setControlsRunning(button.dataset.command);
           logBox.textContent = "Starting job...";
           const data = new FormData(form);
           const response = await fetch(`/jobs/${button.dataset.command}`, {
@@ -215,6 +272,10 @@
           const payload = await response.json();
           if (!response.ok) {
             logBox.textContent = payload.detail || "Failed to start job.";
+            setControlsFinished({
+              command: button.dataset.command,
+              status: "failed"
+            });
             return;
           }
           pollJob(payload.id);
