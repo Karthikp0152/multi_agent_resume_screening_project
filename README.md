@@ -284,6 +284,15 @@ Finding:
 - Skill extraction is less stable than raw text extraction, which is reflected
   in the lower skill-overlap score.
 
+### Report Figures
+
+Report-ready PNG figures are available in [`docs/figures`](docs/figures).
+They are generated from the real JSON reports under `output/reports/` using:
+
+```bash
+python scripts/generate_report_plots.py --reports-dir output/reports --output-dir docs/figures
+```
+
 ## Project Structure
 
 ```text

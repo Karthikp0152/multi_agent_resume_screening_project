@@ -33,6 +33,21 @@ Generated artifacts:
 - `output/reports/cluster_assignments.json`
 - `output/reports/validation_report.json`
 
+Report figures generated from these JSON outputs are saved in `docs/figures/`.
+Regenerate them with:
+
+```bash
+python scripts/generate_report_plots.py --reports-dir output/reports --output-dir docs/figures
+```
+
+Recommended figures for the final report:
+
+- [Classification model metrics](figures/model_metrics.png)
+- [Per-category F1 scores](figures/category_f1_scores.png)
+- [CSV/PDF validation metrics](figures/validation_metrics.png)
+- [PDF cluster size distribution](figures/cluster_size_distribution.png)
+- [Association mining summary](figures/association_summary.png)
+
 ## Classification Results
 
 The current real-data run uses the configuration in `config/config.yaml`, including:

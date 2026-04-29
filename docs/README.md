@@ -13,6 +13,7 @@ the files here provide deeper implementation, command, and result details.
 | [`RESUME_PROCESSOR_ARCHITECTURE.md`](RESUME_PROCESSOR_ARCHITECTURE.md) | Pipeline architecture and processing flow |
 | [`API_DOCUMENTATION.md`](API_DOCUMENTATION.md) | Developer-facing module and class details |
 | [`INTEGRATION_TESTS_GUIDE.md`](INTEGRATION_TESTS_GUIDE.md) | Integration test scope and commands |
+| [`figures/README.md`](figures/README.md) | Report-ready PNG plots generated from real pipeline outputs |
 
 ## Local Web Dashboard
 
