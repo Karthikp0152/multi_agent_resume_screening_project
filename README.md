@@ -12,21 +12,28 @@ a modular in-process Python pipeline. The main value of the project is the data
 mining workflow around resume parsing, classification, association mining,
 clustering, and extraction validation.
 
+## AI And Tooling Credit
+
+- **Architecture image**: generated with ChatGPT image generation v2.
+- **Code development and cleanup assistance**: Codex App, VS Code, and Codex 5.5.
+- Final implementation, verification, and reporting decisions were reviewed by
+  the project team.
+
 ## Start Here
 
 If you are reviewing this project for the first time, read these files in this
 order:
 
-| File | Purpose |
-| --- | --- |
-| [`README.md`](README.md) | Project overview, setup, workflow, latest results, and limitations |
-| [`docs/README.md`](docs/README.md) | Documentation index |
-| [`docs/REAL_DATA_RESULTS.md`](docs/REAL_DATA_RESULTS.md) | Detailed metrics from the latest real Kaggle dataset run |
-| [`docs/CLI_REFERENCE.md`](docs/CLI_REFERENCE.md) | Full command reference for every supported CLI command |
-| [`docs/RESUME_PROCESSOR_ARCHITECTURE.md`](docs/RESUME_PROCESSOR_ARCHITECTURE.md) | How the resume processing pipeline is organized |
-| [`docs/API_DOCUMENTATION.md`](docs/API_DOCUMENTATION.md) | Developer-facing module and API notes |
-| [`docs/INTEGRATION_TESTS_GUIDE.md`](docs/INTEGRATION_TESTS_GUIDE.md) | Test coverage and integration test workflow |
-| [`docs/figures/README.md`](docs/figures/README.md) | Report figure captions and regeneration command |
+| File                                                                             | Purpose                                                            |
+| -------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| [`README.md`](README.md)                                                         | Project overview, setup, workflow, latest results, and limitations |
+| [`docs/README.md`](docs/README.md)                                               | Documentation index                                                |
+| [`docs/REAL_DATA_RESULTS.md`](docs/REAL_DATA_RESULTS.md)                         | Detailed metrics from the latest real Kaggle dataset run           |
+| [`docs/CLI_REFERENCE.md`](docs/CLI_REFERENCE.md)                                 | Full command reference for every supported CLI command             |
+| [`docs/RESUME_PROCESSOR_ARCHITECTURE.md`](docs/RESUME_PROCESSOR_ARCHITECTURE.md) | How the resume processing pipeline is organized                    |
+| [`docs/API_DOCUMENTATION.md`](docs/API_DOCUMENTATION.md)                         | Developer-facing module and API notes                              |
+| [`docs/INTEGRATION_TESTS_GUIDE.md`](docs/INTEGRATION_TESTS_GUIDE.md)             | Test coverage and integration test workflow                        |
+| [`docs/figures/README.md`](docs/figures/README.md)                               | Report figure captions and regeneration command                    |
 
 ## What The Project Does
 
@@ -248,10 +255,10 @@ dataset artifacts.
 
 ### Classification
 
-| Model | Accuracy | Macro F1 |
-| --- | ---: | ---: |
-| Baseline: TF-IDF + Logistic Regression | 0.6258 | 0.5468 |
-| Proposed: Hybrid Text + Skill Logistic Regression | 0.4165 | 0.3685 |
+| Model                                             | Accuracy | Macro F1 |
+| ------------------------------------------------- | -------: | -------: |
+| Baseline: TF-IDF + Logistic Regression            |   0.6258 |   0.5468 |
+| Proposed: Hybrid Text + Skill Logistic Regression |   0.4165 |   0.3685 |
 
 Finding:
 
