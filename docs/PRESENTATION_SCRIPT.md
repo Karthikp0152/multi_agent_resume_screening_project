@@ -4,7 +4,7 @@ Target length: under 5 minutes.
 
 ## 1. Intro
 
-Hi everyone, I am Luan Nguyen. Our project is a Smart Resume Screening and Skill Mining System for CSE 572. The goal is to take resumes from a real Kaggle dataset, extract structured information, normalize skills, run machine learning models, and analyze patterns across candidates using data mining techniques.
+Hi everyone, Our project is a Multi-Agent Resume Screening and Skill Mining System for CSE 572. The goal is to take resumes from a real Kaggle dataset, extract structured information, normalize skills, run machine learning models, and analyze patterns across candidates using data mining techniques.
 
 ## 2. Agenda
 
