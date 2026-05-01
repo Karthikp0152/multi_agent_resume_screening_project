@@ -396,8 +396,10 @@ pytest tests/test_main_integration.py tests/test_evaluation_module.py tests/test
 
 The most recent full local verification passed:
 
-- `518` tests passed
+- `525` tests passed
 - `5` warnings
+- The warnings come from expected `mlxtend` and `scikit-learn` edge-case test
+  scenarios, not failed project behavior.
 
 ## Current Scope And Limitations
 
